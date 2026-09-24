@@ -1,2 +1,10 @@
 # Throwaway Swift-vs-Rust spike (includes a 145MB model)
 spike/
+
+# Build output
+.build/
+.swiftpm/
+build/
+
+# Plan execution workspace
+.superpowers/
