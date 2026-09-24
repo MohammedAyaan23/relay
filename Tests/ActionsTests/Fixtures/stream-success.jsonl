@@ -1,0 +1,9 @@
+{"type":"system","subtype":"hook_started","session_id":"11111111-1111-1111-1111-111111111111"}
+{"type":"system","subtype":"init","cwd":"/tmp/project","session_id":"11111111-1111-1111-1111-111111111111","tools":["Bash","Edit","Read"]}
+{"type":"system","subtype":"thinking_tokens","session_id":"11111111-1111-1111-1111-111111111111"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"thinking","thinking":"","signature":"x"}]},"session_id":"11111111-1111-1111-1111-111111111111"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{"file_path":"/tmp/project/note.txt"}}]},"session_id":"11111111-1111-1111-1111-111111111111"}
+{"type":"rate_limit_event","rate_limit_info":{"status":"allowed"},"session_id":"11111111-1111-1111-1111-111111111111"}
+{"type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_1","type":"tool_result","content":"1\thello from relay\n","is_error":false}]},"session_id":"11111111-1111-1111-1111-111111111111"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"hello from relay"}]},"session_id":"11111111-1111-1111-1111-111111111111"}
+{"type":"result","subtype":"success","is_error":false,"duration_ms":6151,"result":"hello from relay","session_id":"11111111-1111-1111-1111-111111111111","total_cost_usd":0.0286,"permission_denials":[]}

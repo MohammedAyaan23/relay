@@ -1,0 +1,5 @@
+{"type":"system","subtype":"init","session_id":"22222222-2222-2222-2222-222222222222","tools":["Bash"]}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_2","name":"Bash","input":{"command":"python3 -c 'print(40+2)'","description":"Run a Python command"}}]},"session_id":"22222222-2222-2222-2222-222222222222"}
+{"type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_2","type":"tool_result","content":"This command requires approval","is_error":true}]},"session_id":"22222222-2222-2222-2222-222222222222"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"The command requires your approval to run."}]},"session_id":"22222222-2222-2222-2222-222222222222"}
+{"type":"result","subtype":"success","is_error":false,"duration_ms":5200,"result":"The command requires your approval to run.","session_id":"22222222-2222-2222-2222-222222222222","total_cost_usd":0.02,"permission_denials":[{"tool_name":"Bash","tool_use_id":"toolu_2","tool_input":{"command":"python3 -c 'print(40+2)'","description":"Run a Python command"}}]}

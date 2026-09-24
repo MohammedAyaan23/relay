@@ -7,5 +7,7 @@ let package = Package(
     targets: [
         .target(name: "Extraction"),
         .testTarget(name: "ExtractionTests", dependencies: ["Extraction"]),
+        .target(name: "Actions"),
+        .testTarget(name: "ActionsTests", dependencies: ["Actions"], exclude: ["Fixtures"]),
     ]
 )
