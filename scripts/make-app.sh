@@ -1,0 +1,19 @@
+#!/bin/bash
+# Builds build/Relay.app from this checkout: release build, bundle layout, Info.plist, local signature.
+#
+# SwiftPM resource bundles (FluidUse, KeyboardShortcuts) are looked up at the .app root, which codesign
+# rejects, and then in this checkout's .build folder. So Relay.app works when built from this checkout.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+swift build -c release --product Relay
+BIN="$(swift build -c release --show-bin-path)"
+APP="build/Relay.app"
+
+rm -rf "$APP"
+mkdir -p "$APP/Contents/MacOS"
+cp "$BIN/Relay" "$APP/Contents/MacOS/Relay"
+cp Resources/Info.plist "$APP/Contents/Info.plist"
+codesign --force --sign - "$APP"
+codesign --verify --strict "$APP"
+echo "Built $APP"

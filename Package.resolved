@@ -1,5 +1,5 @@
 {
-  "originHash" : "85020bd97cce005cfe71593523e418af651a2c783ccc5aa43c721de72a990996",
+  "originHash" : "4a4bf5c9e79b785fa5880c91ac366c4d95d3f4fcf3000f33a7e57de793db552c",
   "pins" : [
     {
       "identity" : "fluidaudio",
@@ -16,6 +16,15 @@
       "location" : "https://github.com/FluidInference/FluidUse.git",
       "state" : {
         "revision" : "e0d4215ae395a877e9d11bbb75bb26413137ab05"
+      }
+    },
+    {
+      "identity" : "keyboardshortcuts",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sindresorhus/KeyboardShortcuts.git",
+      "state" : {
+        "revision" : "70caa8dea43e2d273cd5ab78885d7eff01df550c",
+        "version" : "1.10.0"
       }
     }
   ],
