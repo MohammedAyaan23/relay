@@ -1,0 +1,283 @@
+import Actions
+import Capture
+import Extraction
+import Foundation
+import Observation
+import Routing
+import Transcription
+
+public enum PermissionKind: Sendable, Equatable {
+    case microphone
+    case speechRecognition
+}
+
+public struct AssistantDependencies {
+    public var recorder: any AudioRecording
+    public var transcriber: any Transcribing
+    public var router: any IntentRouting
+    public var apps: @Sendable () -> [InstalledApp]
+    public var opener: any URLOpening
+    /// nil when the claude executable couldn't be found.
+    public var claude: (any ClaudeJobRunning)?
+    public var log: any DecisionLogging
+    /// Posts a user notification: (title, body).
+    public var notify: @MainActor (String, String) -> Void
+
+    public init(recorder: any AudioRecording, transcriber: any Transcribing, router: any IntentRouting,
+                apps: @escaping @Sendable () -> [InstalledApp], opener: any URLOpening,
+                claude: (any ClaudeJobRunning)?, log: any DecisionLogging,
+                notify: @escaping @MainActor (String, String) -> Void) {
+        self.recorder = recorder
+        self.transcriber = transcriber
+        self.router = router
+        self.apps = apps
+        self.opener = opener
+        self.claude = claude
+        self.log = log
+        self.notify = notify
+    }
+}
+
+/// The central state machine: hotkey → listen → transcribe → route → act.
+@MainActor @Observable
+public final class Assistant {
+    public enum Phase: Equatable, Sendable {
+        case preparing, idle, listening, transcribing, routing, acting
+    }
+
+    static let noProject = "No active project. Pick one from the menu."
+    static let claudeMissing = "Couldn't find the claude command. Set its path in Settings, then restart Relay."
+    static let claudeBusy = "Claude is still working. Stop it first."
+
+    public private(set) var phase: Phase = .preparing
+    public private(set) var transcript: String?
+    public private(set) var decision: RoutingDecision?
+    public private(set) var message: String?
+    public private(set) var missingPermission: PermissionKind?
+    public private(set) var claudeEvents: [ClaudeEvent] = []
+    public private(set) var claudeRunning = false
+    public var activeProject: URL?
+
+    private let deps: AssistantDependencies
+    private var matcher = AppMatcher(apps: [])
+    private var claudeJob: Task<Void, Never>?
+
+    public init(dependencies: AssistantDependencies, activeProject: URL? = nil) {
+        deps = dependencies
+        self.activeProject = activeProject
+    }
+
+    // MARK: Setup
+
+    /// Requests permissions and loads models. The hotkey does nothing until this reaches `.idle`.
+    public func prepare() async {
+        phase = .preparing
+        missingPermission = nil
+        message = "Getting ready…"
+        guard await deps.recorder.requestPermission() else {
+            missingPermission = .microphone
+            message = "Relay needs microphone access. Allow it in System Settings, then try again."
+            return
+        }
+        do {
+            try await deps.transcriber.prepare()
+        } catch TranscriptionError.permissionDenied {
+            missingPermission = .speechRecognition
+            message = "Relay needs speech recognition access. Allow it in System Settings, then try again."
+            return
+        } catch {
+            message = "Couldn't set up speech recognition: \(error.localizedDescription)"
+            return
+        }
+        do {
+            try await deps.router.prepare { text in
+                Task { @MainActor [weak self] in self?.message = text }
+            }
+        } catch {
+            message = "Couldn't load the Laya model: \(error.localizedDescription)"
+            return
+        }
+        matcher = AppMatcher(apps: deps.apps())
+        phase = .idle
+        message = deps.claude == nil ? "Ready. (Claude Code wasn't found. Set its path in Settings.)" : "Ready."
+    }
+
+    public func setThresholds(_ thresholds: RoutingThresholds) async {
+        await deps.router.setThresholds(thresholds)
+    }
+
+    // MARK: Hotkey
+
+    /// First press starts listening; second press stops and runs the command. Ignored while busy.
+    public func hotkeyPressed() async {
+        switch phase {
+        case .idle:
+            do {
+                try deps.recorder.start()
+                transcript = nil
+                decision = nil
+                phase = .listening
+                message = "Listening… press the hotkey again when you're done."
+            } catch CaptureError.permissionDenied {
+                missingPermission = .microphone
+                message = "Relay needs microphone access. Allow it in System Settings, then try again."
+            } catch {
+                message = "Couldn't start the microphone: \(error.localizedDescription)"
+            }
+        case .listening:
+            let audio: URL
+            do {
+                audio = try deps.recorder.stop()
+            } catch {
+                finish("Recording failed: \(error.localizedDescription)")
+                return
+            }
+            phase = .transcribing
+            message = "Transcribing…"
+            let text: String
+            do {
+                text = try await deps.transcriber.transcribe(audio)
+            } catch {
+                finish("Couldn't transcribe: \(error.localizedDescription)")
+                return
+            }
+            try? FileManager.default.removeItem(at: audio)
+            await handle(transcript: text)
+        case .preparing, .transcribing, .routing, .acting:
+            return
+        }
+    }
+
+    // MARK: Commands
+
+    /// Routes a transcript and performs the action. Public so it can be driven without a microphone.
+    public func handle(transcript rawText: String) async {
+        let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        transcript = text
+        guard !text.isEmpty else { return finish("Didn't catch anything.") }
+
+        phase = .routing
+        let decision: RoutingDecision
+        do {
+            decision = try await deps.router.route(text)
+        } catch {
+            return finish("Couldn't work out the command: \(error.localizedDescription)")
+        }
+        self.decision = decision
+
+        let result: (message: String, extracted: String?)
+        switch decision.outcome {
+        case .notACommand:
+            result = ("Didn't sound like a command: “\(text)”", nil)
+        case .ambiguous(let top):
+            result = ("Not sure what you meant. Maybe \(top.map(\.displayName).joined(separator: " or "))?", nil)
+        case .intent(let intent):
+            phase = .acting
+            result = await perform(intent, text)
+        }
+
+        deps.log.append(DecisionLogEntry(
+            timestamp: Date(), transcript: text, gateProbability: decision.gateProbability,
+            choiceProbabilities: Dictionary(uniqueKeysWithValues: decision.choiceProbabilities.map { ($0.key.rawValue, $0.value) }),
+            outcome: decision.outcome.logName, extracted: result.extracted,
+            stateWasTruncated: decision.stateWasTruncated, result: result.message))
+        finish(result.message)
+    }
+
+    public func startNewClaudeSession() async {
+        message = await perform(.newClaudeSession, "").message
+    }
+
+    public func stopClaude() async {
+        await deps.claude?.stop()
+    }
+
+    func waitForClaudeJob() async {
+        await claudeJob?.value
+    }
+
+    // MARK: Private
+
+    private func finish(_ text: String) {
+        message = text
+        phase = .idle
+    }
+
+    private func perform(_ intent: RoutedIntent, _ text: String) async -> (message: String, extracted: String?) {
+        switch intent {
+        case .openApp:
+            switch matcher.match(text) {
+            case .found(let app):
+                return (deps.opener.open(app.url) ? "Opened \(app.name)." : "Couldn't open \(app.name).", app.name)
+            case .notFound(let query, let suggestions):
+                guard !query.isEmpty else { return ("Which app should I open?", nil) }
+                let hint = suggestions.isEmpty ? "" : " Closest: \(suggestions.joined(separator: ", "))."
+                return ("No app matching “\(query)”.\(hint)", query)
+            }
+
+        case .webSearch:
+            guard let query = SearchQueryExtractor.query(from: text) else { return ("What should I search for?", nil) }
+            let opened = deps.opener.open(WebSearch.url(for: query))
+            return (opened ? "Searching the web for “\(query)”." : "Couldn't open the browser.", query)
+
+        case .newClaudeSession:
+            guard let claude = deps.claude else { return (Self.claudeMissing, nil) }
+            guard let project = activeProject else { return (Self.noProject, nil) }
+            if await claude.isRunning { return (Self.claudeBusy, nil) }
+            do {
+                try await claude.clearSession(for: project)
+            } catch {
+                return ("Couldn't reset the Claude session: \(error.localizedDescription)", nil)
+            }
+            claudeEvents = []
+            return ("Started a new Claude session for \(project.lastPathComponent).", nil)
+
+        case .askClaude:
+            guard let claude = deps.claude else { return (Self.claudeMissing, nil) }
+            guard let project = activeProject else { return (Self.noProject, nil) }
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: project.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+                return ("The active project folder no longer exists: \(project.path). Pick another from the menu.", nil)
+            }
+            guard let prompt = ClaudePromptExtractor.prompt(from: text) else { return ("What should I ask Claude?", nil) }
+            if await claude.isRunning { return (Self.claudeBusy, prompt) }
+            let events: AsyncStream<ClaudeEvent>
+            do {
+                events = try await claude.run(prompt: prompt, project: project)
+            } catch ClaudeRunnerError.busy {
+                return (Self.claudeBusy, prompt)
+            } catch {
+                return ("Couldn't start Claude: \(error.localizedDescription)", prompt)
+            }
+            claudeEvents = []
+            claudeRunning = true
+            claudeJob = Task { [weak self] in
+                for await event in events { self?.receive(event) }
+                self?.claudeRunning = false
+            }
+            return ("Claude is working on it in \(project.lastPathComponent)…", prompt)
+        }
+    }
+
+    private func receive(_ event: ClaudeEvent) {
+        if case .ignored = event { return }
+        claudeEvents.append(event)
+        switch event {
+        case .finished(let result) where result.isError:
+            // A failed exit usually follows with the useful stderr; notify then, not twice.
+            message = "Claude reported an error: \(result.text ?? "no details")"
+        case .finished(let result):
+            var summary = "Claude finished in \(result.durationMs / 1000)s ($\(String(format: "%.2f", result.costUSD)))."
+            if !result.deniedTools.isEmpty { summary += " Blocked: \(result.deniedTools.joined(separator: "; "))." }
+            message = summary
+            deps.notify("Claude finished", result.text ?? summary)
+        case .failed(let code, let tail):
+            message = "Claude failed (exit \(code)): \(tail)"
+            deps.notify("Claude failed", tail)
+        case .stopped:
+            message = "Stopped Claude."
+        default:
+            break
+        }
+    }
+}
