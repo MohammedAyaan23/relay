@@ -15,5 +15,8 @@ let package = Package(
         .testTarget(name: "ActionsTests", dependencies: ["Actions"], exclude: ["Fixtures"]),
         .target(name: "Routing", dependencies: [.product(name: "FluidUse", package: "FluidUse")]),
         .testTarget(name: "RoutingTests", dependencies: ["Routing"], exclude: ["phrases.json"]),
+        .target(name: "Capture"),
+        .target(name: "Transcription"),
+        .testTarget(name: "TranscriptionTests", dependencies: ["Transcription"]),
     ]
 )
