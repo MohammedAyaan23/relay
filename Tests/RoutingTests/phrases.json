@@ -1,0 +1,19 @@
+{
+  "minimumAccuracy": 1.0,
+  "phrases": [
+    {"text": "Open Safari.", "expected": "open_app"},
+    {"text": "can you fire up spotify", "expected": "open_app"},
+    {"text": "launch xcode", "expected": "open_app"},
+    {"text": "Search the web for rust to sink tutorials.", "expected": "web_search"},
+    {"text": "look up the weather in hyderabad", "expected": "web_search"},
+    {"text": "google best mechanical keyboards", "expected": "web_search"},
+    {"text": "Ask Claude to explain what a mutex is in one sentence.", "expected": "ask_claude"},
+    {"text": "have claude write a readme for this repo", "expected": "ask_claude"},
+    {"text": "tell claude the tests are failing and to fix them", "expected": "ask_claude"},
+    {"text": "start a new claude session", "expected": "new_claude_session"},
+    {"text": "new Claude conversation please", "expected": "new_claude_session"},
+    {"text": "reset Claude and start fresh", "expected": "new_claude_session"},
+    {"text": "i had a great lunch today", "expected": "not_a_command"},
+    {"text": "hmm let me think about that for a second", "expected": "not_a_command"}
+  ]
+}

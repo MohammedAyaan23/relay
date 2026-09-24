@@ -68,8 +68,13 @@ Everything except `RelayApp` has no UI. `AssistantCore` depends on protocols (`T
 ### 4.3 Routing
 
 The spike showed that a catch-all "none" option in the choice question absorbs real commands (6/11 correct).
-Relay therefore routes in two steps:
+Relay therefore routes in three steps:
 
+0. **Session-reset rule (no model):** a short transcript (at most 8 words) that mentions Claude plus a
+   reset word ("new", "fresh", "reset", "restart", "clear") and either a session word ("session",
+   "conversation", "chat") or "reset"/"restart" is `new_claude_session`. Measured during implementation:
+   as a fourth Laya option, a session-reset choice pulled in unrelated commands (11/14 at best across four
+   wordings), so it's handled as a fixed phrase instead.
 1. **Gate:** a yes/no question.
    - Instructions: "Is the user giving the computer an instruction to perform an action?"
    - Meaning of false: "just talking, not asking the computer to do anything"
@@ -80,8 +85,8 @@ Relay therefore routes in two steps:
    - `open_app`: "launch or switch to an application on the Mac"
    - `web_search`: "search the internet or look something up in the browser"
    - `ask_claude`: "send a coding task or question to Claude Code"
-   - `new_claude_session`: "start a fresh Claude Code conversation"
-   - If the top probability < `choiceThreshold` (initially 0.5), result: ambiguous. The top two options are
+   - If the top probability < `choiceThreshold` (initially **0.35**: with three options chance is 0.33, and
+     correct web searches in the phrase set won with 0.37–0.44), result: ambiguous. The top two options are
      returned so the panel can show them.
 
 Other details:
