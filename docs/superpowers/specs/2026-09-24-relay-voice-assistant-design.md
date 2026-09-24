@@ -23,7 +23,7 @@ well.
 | Trigger | Global hotkey toggles listening: press to start, press to stop | Handles long Claude prompts; predictable |
 | Claude working dir | One "active project" folder chosen from the menu bar | Simple and predictable |
 | Claude output | Floating panel that streams progress, plus a notification when done | Glanceable; lets follow-ups resume the session |
-| Claude permissions | `--permission-mode acceptEdits`; shell commands only via the project's own allowlist | Safe; approval from the panel is the next feature |
+| Claude permissions | `--permission-mode acceptEdits`: file edits and simple file commands (`touch`, `mkdir`, …) are auto-approved; other shell commands only via the project's own allowlist; blocked calls are shown in the panel | Safe; approval from the panel is the next feature |
 | Claude sessions | One continuing session per project; reset by voice ("new Claude session") or menu | Behaves like a terminal tab |
 | v1 actions | Ask Claude Code, open app, web search | Core goal plus two cheap actions that exercise routing |
 | Build | Swift package plus `scripts/make-app.sh` to assemble a signed `.app`; no Xcode | Command Line Tools only on this machine |
@@ -60,9 +60,9 @@ hotkey ─▶ Listening ─ hotkey ─▶ Transcribing ─▶ Routing ─▶ Ext
 | `Extraction` | Rule-based extraction of each intent's details (app name, search query, Claude prompt) | none |
 | `Actions` | `AppLauncher`, `WebSearcher`, `ClaudeRunner` (process, stream parser, session store) | Foundation, AppKit |
 | `AssistantCore` | The state machine that coordinates everything; publishes state for the UI | all of the above |
-| `App` | SwiftUI menu-bar app: hotkey, floating panel, project picker, settings | AssistantCore, KeyboardShortcuts |
+| `RelayApp` | SwiftUI menu-bar app: hotkey, floating panel, project picker, settings | AssistantCore, KeyboardShortcuts |
 
-Everything except `App` has no UI. `AssistantCore` depends on protocols (`Transcribing`, `Routing`,
+Everything except `RelayApp` has no UI. `AssistantCore` depends on protocols (`Transcribing`, `Routing`,
 `ActionPerforming`, …), not concrete types, so tests can inject fakes.
 
 ### 4.3 Routing
@@ -129,7 +129,11 @@ Transcripts are lowercased, punctuation is removed, and whitespace is collapsed 
   - `assistantText(String)`
   - `toolUse(name, summary)`: summary is e.g. the file path for Edit/Write/Read, or the command for Bash
   - `toolResult(isError)`
-  - `result(text, sessionID, durationMs, costUSD, isError)`
+  - `result(text, sessionID, durationMs, costUSD, isError, deniedTools)`: `deniedTools` comes from the result's
+    `permission_denials` list, e.g. "Bash: python3 …". The panel shows them as "Blocked: …".
+
+  Verified against Claude Code 2.1.281 (2026-09-24). The real stream also contains `system` `hook_*` and
+  `thinking_tokens` lines, `thinking` content blocks and `rate_limit_event` lines; all are skipped.
 
   Anything else becomes `.unknown` and is logged. A line that isn't valid JSON is logged and skipped;
   neither ends the job.
@@ -146,7 +150,7 @@ Transcripts are lowercased, punctuation is removed, and whitespace is collapsed 
   - A non-zero exit or a `result` with `isError` shows the last 20 lines of stderr.
   - The saved session ID is cleared only if stderr says the session can't be found or resumed.
 
-### 4.6 UI (`App` target)
+### 4.6 UI (`RelayApp` target)
 
 - **Menu-bar-only app:** `LSUIElement = true`, so there is no Dock icon.
 - **Menu-bar icon** reflects the state: idle, listening, or working.
@@ -214,8 +218,8 @@ This log is the source for growing the routing test set.
 
 ```
 Package.swift                  macOS 26, Swift 6; FluidUse pinned to a commit; KeyboardShortcuts
-Sources/{Capture,Transcription,Routing,Extraction,Actions,AssistantCore,App}/
-Tests/{ExtractionTests,ActionsTests,AssistantCoreTests,RoutingTests}/
+Sources/{Capture,Transcription,Routing,Extraction,Actions,AssistantCore,RelayApp}/
+Tests/{ExtractionTests,ActionsTests,AssistantCoreTests,RoutingTests,TranscriptionTests}/
 Tests/ActionsTests/Fixtures/   recorded stream-json output, fake `claude` script
 Tests/RoutingTests/phrases.json labelled phrases (see §7)
 Resources/Info.plist
@@ -224,6 +228,10 @@ Makefile                       build | test | test-routing | app | run
 ```
 
 FluidUse is pinned to a commit because its README says `0.2.1`, but the latest tag is `v0.2.0`.
+
+**Resource bundles:** SwiftPM's generated resource lookup checks the `.app` root folder (which `codesign`
+rejects) and then this checkout's `.build` folder. `Relay.app` therefore works when built from this checkout,
+which is fine for a personal app. The Laya code path doesn't load FluidUse's bundle at all.
 
 ## 7. Testing
 
