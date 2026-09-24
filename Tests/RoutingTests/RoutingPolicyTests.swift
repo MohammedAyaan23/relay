@@ -16,7 +16,7 @@ private let thresholds = RoutingThresholds()
 
 @Test func weakChoiceIsAmbiguousWithTopTwo() {
     #expect(RoutingPolicy.outcome(gateProbability: 0.9,
-                                  choiceProbabilities: [.openApp: 0.34, .webSearch: 0.33, .askClaude: 0.33],
+                                  choiceProbabilities: [.openApp: 0.34, .webSearch: 0.33, .askClaude: 0.32],
                                   thresholds: thresholds) == .ambiguous([.openApp, .webSearch]))
 }
 
