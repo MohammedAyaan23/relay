@@ -3,6 +3,9 @@ import Foundation
 /// Removes a spoken lead-in ("search for", "tell claude to", …) from the start of a command,
 /// keeping the rest of the original text verbatim.
 public enum LeadIn {
+    /// Only sentence punctuation is trimmed, so "C#", "50%" and "(briefly)" keep their symbols.
+    static let sentencePunctuation = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ".,;:!?"))
+
     static let courtesy = ["can you", "could you", "would you", "will you", "please", "hey relay", "relay", "ok", "okay"]
 
     /// Removes any courtesy words, then the longest phrase in `phrases`, matching whole words
@@ -20,7 +23,7 @@ public enum LeadIn {
         }
         while dropLongest(of: courtesy) {}
         _ = dropLongest(of: phrases)
-        return rest.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+        return rest.trimmingCharacters(in: sentencePunctuation)
     }
 
     /// The index just past `phrase` if `text` starts with it as whole words. Any run of

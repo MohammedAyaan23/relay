@@ -54,6 +54,8 @@ public final class Assistant {
     public private(set) var decision: RoutingDecision?
     public private(set) var message: String?
     public private(set) var missingPermission: PermissionKind?
+    /// Setup failed for a reason other than permissions (e.g. a dropped model download); offer a retry.
+    public private(set) var prepareFailed = false
     public private(set) var claudeEvents: [ClaudeEvent] = []
     public private(set) var claudeRunning = false
     public var activeProject: URL?
@@ -61,6 +63,9 @@ public final class Assistant {
     private let deps: AssistantDependencies
     private var matcher = AppMatcher(apps: [])
     private var claudeJob: Task<Void, Never>?
+    /// The current job's error `result` text, and whether the user was already notified of a failure.
+    private var claudeError: String?
+    private var claudeFailureNotified = false
 
     public init(dependencies: AssistantDependencies, activeProject: URL? = nil) {
         deps = dependencies
@@ -73,6 +78,7 @@ public final class Assistant {
     public func prepare() async {
         phase = .preparing
         missingPermission = nil
+        prepareFailed = false
         message = "Getting ready…"
         guard await deps.recorder.requestPermission() else {
             missingPermission = .microphone
@@ -87,6 +93,7 @@ public final class Assistant {
             return
         } catch {
             message = "Couldn't set up speech recognition: \(error.localizedDescription)"
+            prepareFailed = true
             return
         }
         do {
@@ -95,6 +102,7 @@ public final class Assistant {
             }
         } catch {
             message = "Couldn't load the Laya model: \(error.localizedDescription)"
+            prepareFailed = true
             return
         }
         matcher = AppMatcher(apps: deps.apps())
@@ -250,12 +258,21 @@ public final class Assistant {
                 return ("Couldn't start Claude: \(error.localizedDescription)", prompt)
             }
             claudeEvents = []
+            claudeError = nil
+            claudeFailureNotified = false
             claudeRunning = true
             claudeJob = Task { [weak self] in
                 for await event in events { self?.receive(event) }
-                self?.claudeRunning = false
+                self?.claudeJobEnded()
             }
             return ("Claude is working on it in \(project.lastPathComponent)…", prompt)
+        }
+    }
+
+    private func claudeJobEnded() {
+        claudeRunning = false
+        if let claudeError, !claudeFailureNotified {
+            deps.notify("Claude failed", claudeError)
         }
     }
 
@@ -264,16 +281,20 @@ public final class Assistant {
         claudeEvents.append(event)
         switch event {
         case .finished(let result) where result.isError:
-            // A failed exit usually follows with the useful stderr; notify then, not twice.
-            message = "Claude reported an error: \(result.text ?? "no details")"
+            // A failed exit usually follows; notify then (or when the job ends), not twice.
+            claudeError = result.text ?? "no details"
+            message = "Claude reported an error: \(claudeError!)"
         case .finished(let result):
             var summary = "Claude finished in \(result.durationMs / 1000)s ($\(String(format: "%.2f", result.costUSD)))."
             if !result.deniedTools.isEmpty { summary += " Blocked: \(result.deniedTools.joined(separator: "; "))." }
             message = summary
             deps.notify("Claude finished", result.text ?? summary)
         case .failed(let code, let tail):
-            message = "Claude failed (exit \(code)): \(tail)"
-            deps.notify("Claude failed", tail)
+            // Auth, credit and API errors leave stderr empty; the reason is in the error result.
+            let reason = tail.isEmpty ? (claudeError ?? "no details") : tail
+            message = "Claude failed (exit \(code)): \(reason)"
+            deps.notify("Claude failed", reason)
+            claudeFailureNotified = true
         case .stopped:
             message = "Stopped Claude."
         default:

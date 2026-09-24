@@ -43,3 +43,9 @@ import Testing
     let body = Array(repeating: "refactor the parser module", count: 60).joined(separator: " and ")
     #expect(ClaudePromptExtractor.prompt(from: "ask claude to " + body) == body)
 }
+
+@Test func meaningfulTrailingSymbolsSurvive() {
+    #expect(SearchQueryExtractor.query(from: "google C#") == "C#")
+    #expect(SearchQueryExtractor.query(from: "search for 50%") == "50%")
+    #expect(ClaudePromptExtractor.prompt(from: "ask claude to explain the regex (briefly)") == "explain the regex (briefly)")
+}

@@ -24,6 +24,8 @@ struct PanelView: View {
                     Button("Open System Settings") { controller.openPrivacySettings(for: kind) }
                     Button("Try Again") { controller.retryPrepare() }
                 }
+            } else if assistant.prepareFailed {
+                Button("Try Again") { controller.retryPrepare() }
             }
             if let transcript = assistant.transcript, !transcript.isEmpty {
                 Label(transcript, systemImage: "quote.bubble").foregroundStyle(.secondary)

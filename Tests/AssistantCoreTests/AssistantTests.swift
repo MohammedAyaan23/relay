@@ -181,3 +181,39 @@ import Testing
     #expect(h.assistant.message == "Stopped Claude.")
     #expect(h.notifications.isEmpty)
 }
+
+// MARK: Final-review findings
+
+@MainActor @Test func claudeErrorWithEmptyStderrShowsTheResultText() async {
+    let h = Harness(transcript: "ask claude to continue", outcome: .intent(.askClaude))
+    let errorResult = ClaudeResult(text: "Invalid API key · Please run /login", sessionID: "x", durationMs: 0,
+                                   costUSD: 0, isError: true, deniedTools: [])
+    await h.claude!.setScript([.finished(errorResult), .failed(exitCode: 1, stderrTail: "")])
+    await h.speak()
+    await h.assistant.waitForClaudeJob()
+    #expect(h.assistant.message == "Claude failed (exit 1): Invalid API key · Please run /login")
+    #expect(h.notifications == ["Claude failed"])
+}
+
+@MainActor @Test func claudeErrorThatExitsCleanlyStillNotifies() async {
+    let h = Harness(transcript: "ask claude to continue", outcome: .intent(.askClaude))
+    let errorResult = ClaudeResult(text: "Credit balance is too low", sessionID: "x", durationMs: 0,
+                                   costUSD: 0, isError: true, deniedTools: [])
+    await h.claude!.setScript([.finished(errorResult)])
+    await h.speak()
+    await h.assistant.waitForClaudeJob()
+    #expect(h.assistant.message == "Claude reported an error: Credit balance is too low")
+    #expect(h.notifications == ["Claude failed"])
+}
+
+@MainActor @Test func failedSetupCanBeRetried() async {
+    let h = Harness()
+    await h.transcriber.setPrepareError(.localeUnsupported)
+    await h.assistant.prepare()
+    #expect(h.assistant.phase == .preparing)
+    #expect(h.assistant.prepareFailed)
+    await h.transcriber.setPrepareError(nil)
+    await h.assistant.prepare()
+    #expect(h.assistant.phase == .idle)
+    #expect(!h.assistant.prepareFailed)
+}

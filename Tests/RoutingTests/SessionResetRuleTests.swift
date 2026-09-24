@@ -26,3 +26,12 @@ func leavesOtherCommandsToLaya(_ transcript: String) {
 @Test func defaultChoiceThresholdSuitsThreeOptions() {
     #expect(RoutingThresholds().choice == 0.35)
 }
+
+@Test(arguments: [
+    "Claude, add a new chat screen",
+    "tell Claude to clear the chat input",
+    "Claude, create a new session model",
+])
+func shortCodingTasksMentioningSessionsAreNotResets(_ transcript: String) {
+    #expect(!SessionResetRule.matches(transcript))
+}
