@@ -7,11 +7,14 @@ import SwiftUI
 @MainActor @Observable
 final class HUDModel {
     var isVisible = false
+    /// Bumped each time the pill appears, to replay the squash-and-stretch landing.
+    var appearCount = 0
     @ObservationIgnored private var generation = 0
     @ObservationIgnored var onHidden: () -> Void = {}
 
     func present() {
         generation += 1
+        if !isVisible { appearCount += 1 }
         isVisible = true
     }
 
@@ -32,7 +35,7 @@ final class HUDModel {
 /// A click-through, non-activating glass pill at the bottom centre of the screen with the mouse.
 @MainActor
 final class HUDController {
-    private static let size = NSSize(width: 560, height: 120)
+    private static let size = NSSize(width: 560, height: 150) // room for glow and squash
     private let panel: NSPanel
     private let model = HUDModel()
 
@@ -68,6 +71,6 @@ final class HUDController {
         guard let screen = NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }) ?? NSScreen.main
         else { return }
         let area = screen.visibleFrame
-        panel.setFrameOrigin(NSPoint(x: area.midX - Self.size.width / 2, y: area.minY + 40))
+        panel.setFrameOrigin(NSPoint(x: area.midX - Self.size.width / 2, y: area.minY + 24))
     }
 }

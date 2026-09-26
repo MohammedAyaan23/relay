@@ -34,6 +34,8 @@ final class AppController {
         KeyboardShortcuts.onKeyUp(for: .toggleListening) { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
+                // A light tap on the trackpad (if a finger is on it) confirms start/stop.
+                NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
                 self.hud.present()
                 Task {
                     await self.assistant.hotkeyPressed()

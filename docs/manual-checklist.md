@@ -19,4 +19,8 @@ microphone/speech permission again after rebuilding.
 - [ ] Quit while Claude is running: Relay quits and no `claude` process is left (`pgrep -fl "claude -p"`)
 - [ ] Say "open photoshop" (not installed): the pill shows an orange ⚠ "No app matching …"
 - [ ] Press ⌥Space twice quickly several times: the pill never gets stuck on screen
+- [ ] Goo: while listening, coloured blobs drift and merge like a lava lamp; talking louder swells and spreads them; silence settles them
+- [ ] Goo: after the second press the blobs gather and orbit ("Transcribing…"/"Thinking…"), then collapse into one coloured droplet with the result icon
+- [ ] The pill lands with a squash-and-stretch bounce and drips down when it leaves
+- [ ] System Settings → Accessibility → Display → Reduce motion ON: the goo holds still and the pill only fades in/out
 - [ ] `~/Library/Application Support/Relay/decisions.jsonl` has one line per command
