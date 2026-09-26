@@ -21,12 +21,14 @@ let package = Package(
         .target(name: "Transcription"),
         .testTarget(name: "TranscriptionTests", dependencies: ["Transcription"]),
         .testTarget(name: "CaptureTests", dependencies: ["Capture"]),
+        .target(name: "HUDKit"),
+        .testTarget(name: "HUDKitTests", dependencies: ["HUDKit"]),
         .target(name: "AssistantCore", dependencies: ["Extraction", "Actions", "Routing", "Capture", "Transcription"]),
         .testTarget(name: "AssistantCoreTests", dependencies: [
             "AssistantCore", "Actions", "Capture", "Extraction", "Routing", "Transcription",
         ]),
         .executableTarget(name: "RelayApp", dependencies: [
-            "AssistantCore", "Actions", "Capture", "Transcription", "Routing", "Extraction",
+            "AssistantCore", "Actions", "Capture", "Transcription", "Routing", "Extraction", "HUDKit",
             .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
         ]),
     ]
