@@ -4,6 +4,7 @@ import AssistantCore
 import Capture
 import Extraction
 @preconcurrency import KeyboardShortcuts
+import Observation
 import Routing
 import Transcription
 
@@ -11,6 +12,7 @@ import Transcription
 final class AppController {
     let assistant: Assistant
     private lazy var panel = PanelController(assistant: assistant, controller: self)
+    private lazy var hud = HUDController(assistant: assistant)
 
     init() {
         Preferences.registerDefaults()
@@ -32,12 +34,38 @@ final class AppController {
         KeyboardShortcuts.onKeyUp(for: .toggleListening) { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                self.panel.show()
-                Task { await self.assistant.hotkeyPressed() }
+                self.hud.present()
+                Task {
+                    await self.assistant.hotkeyPressed()
+                    // Still listening: keep the pill. Otherwise show the result briefly, then fade.
+                    if self.assistant.phase != .listening { self.hud.scheduleHide() }
+                }
             }
         }
-        panel.show()
-        Task { await assistant.prepare() }
+        watchForPanelWorthyChanges()
+        hud.present()
+        Task {
+            await assistant.prepare()
+            hud.scheduleHide()
+        }
+    }
+
+    /// The panel opens by itself only when there's something to watch or fix: a Claude job starting,
+    /// or a permission/setup problem that needs its buttons.
+    private func watchForPanelWorthyChanges() {
+        withObservationTracking {
+            _ = assistant.claudeRunning
+            _ = assistant.missingPermission
+            _ = assistant.prepareFailed
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                if self.assistant.claudeRunning || self.assistant.missingPermission != nil || self.assistant.prepareFailed {
+                    self.panel.show()
+                }
+                self.watchForPanelWorthyChanges()
+            }
+        }
     }
 
     func showPanel() {
