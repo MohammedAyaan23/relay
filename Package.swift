@@ -20,6 +20,7 @@ let package = Package(
         .target(name: "Capture"),
         .target(name: "Transcription"),
         .testTarget(name: "TranscriptionTests", dependencies: ["Transcription"]),
+        .testTarget(name: "CaptureTests", dependencies: ["Capture"]),
         .target(name: "AssistantCore", dependencies: ["Extraction", "Actions", "Routing", "Capture", "Transcription"]),
         .testTarget(name: "AssistantCoreTests", dependencies: [
             "AssistantCore", "Actions", "Capture", "Extraction", "Routing", "Transcription",

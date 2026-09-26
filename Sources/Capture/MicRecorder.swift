@@ -9,6 +9,8 @@ public enum CaptureError: Error, Equatable {
 @MainActor
 public protocol AudioRecording: AnyObject {
     func requestPermission() async -> Bool
+    /// Loudness of the latest audio buffer, 0…1; 0 when not recording.
+    var level: Float { get }
     func start() throws
     /// Stops recording and returns the recorded audio file.
     func stop() throws -> URL
@@ -19,8 +21,11 @@ public protocol AudioRecording: AnyObject {
 public final class MicRecorder: AudioRecording {
     private var engine: AVAudioEngine?
     private var file: AVAudioFile?
+    private let meter = LevelMeter()
 
     public init() {}
+
+    public var level: Float { meter.level }
 
     public func requestPermission() async -> Bool {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
@@ -38,7 +43,7 @@ public final class MicRecorder: AudioRecording {
         guard format.channelCount > 0 else { throw CaptureError.noInputDevice }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("relay-\(UUID().uuidString).caf")
         let file = try AVAudioFile(forWriting: url, settings: format.settings)
-        input.installTap(onBus: 0, bufferSize: 4096, format: format, block: Self.writer(to: file))
+        input.installTap(onBus: 0, bufferSize: 4096, format: format, block: Self.writer(to: file, meter: meter))
         try engine.start()
         self.engine = engine
         self.file = file
@@ -49,6 +54,7 @@ public final class MicRecorder: AudioRecording {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         file.close() // flush everything to disk before anyone reads it
+        meter.reset()
         self.engine = nil
         self.file = nil
         return file.url
@@ -56,7 +62,12 @@ public final class MicRecorder: AudioRecording {
 
     /// Built outside the main actor on purpose: the tap runs on an audio thread, and a closure
     /// created inside this @MainActor class would inherit main-actor isolation and trap at runtime.
-    private nonisolated static func writer(to file: AVAudioFile) -> AVAudioNodeTapBlock {
-        { buffer, _ in try? file.write(from: buffer) }
+    private nonisolated static func writer(to file: AVAudioFile, meter: LevelMeter) -> AVAudioNodeTapBlock {
+        { buffer, _ in
+            try? file.write(from: buffer)
+            if let channel = buffer.floatChannelData?[0] {
+                meter.update(with: UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
+            }
+        }
     }
 }

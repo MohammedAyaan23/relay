@@ -10,6 +10,7 @@ import Synchronization
 @MainActor
 final class FakeRecorder: AudioRecording {
     var permission = true
+    var level: Float = 0.6
     var startError: Error?
     private(set) var starts = 0
 

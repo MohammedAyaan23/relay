@@ -217,3 +217,40 @@ import Testing
     #expect(h.assistant.phase == .idle)
     #expect(!h.assistant.prepareFailed)
 }
+
+// MARK: Listening HUD
+
+@MainActor @Test func inputLevelIsTheMicLevelOnlyWhileListening() async {
+    let h = Harness()
+    await h.assistant.prepare()
+    #expect(h.assistant.inputLevel == 0)
+    await h.assistant.hotkeyPressed()
+    #expect(h.assistant.inputLevel == 0.6)
+    await h.assistant.hotkeyPressed()
+    #expect(h.assistant.inputLevel == 0)
+}
+
+@MainActor @Test func successfulCommandIsMarkedSuccess() async {
+    let h = Harness(transcript: "open safari")
+    await h.speak()
+    #expect(h.assistant.resultKind == .success)
+}
+
+@MainActor @Test func nonCommandIsMarkedInfo() async {
+    let h = Harness(transcript: "i had a great lunch today", outcome: .notACommand)
+    await h.speak()
+    #expect(h.assistant.resultKind == .info)
+}
+
+@MainActor @Test func unknownAppIsMarkedProblem() async {
+    let h = Harness(transcript: "open photoshop")
+    await h.speak()
+    #expect(h.assistant.resultKind == .problem)
+}
+
+@MainActor @Test func startingToListenClearsThePreviousResultKind() async {
+    let h = Harness(transcript: "open safari")
+    await h.speak()
+    await h.assistant.hotkeyPressed()
+    #expect(h.assistant.resultKind == nil)
+}

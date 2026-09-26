@@ -6,6 +6,11 @@ import Observation
 import Routing
 import Transcription
 
+/// How the last command turned out, for the HUD's icon.
+public enum ResultKind: Sendable, Equatable {
+    case success, info, problem
+}
+
 public enum PermissionKind: Sendable, Equatable {
     case microphone
     case speechRecognition
@@ -53,12 +58,16 @@ public final class Assistant {
     public private(set) var transcript: String?
     public private(set) var decision: RoutingDecision?
     public private(set) var message: String?
+    public private(set) var resultKind: ResultKind?
     public private(set) var missingPermission: PermissionKind?
     /// Setup failed for a reason other than permissions (e.g. a dropped model download); offer a retry.
     public private(set) var prepareFailed = false
     public private(set) var claudeEvents: [ClaudeEvent] = []
     public private(set) var claudeRunning = false
     public var activeProject: URL?
+
+    /// Microphone loudness (0…1) while listening, else 0. Not observed: the HUD polls it each frame.
+    public var inputLevel: Float { phase == .listening ? deps.recorder.level : 0 }
 
     private let deps: AssistantDependencies
     private var matcher = AppMatcher(apps: [])
@@ -124,6 +133,7 @@ public final class Assistant {
                 try deps.recorder.start()
                 transcript = nil
                 decision = nil
+                resultKind = nil
                 phase = .listening
                 message = "Listening… press the hotkey again when you're done."
             } catch CaptureError.permissionDenied {
@@ -137,7 +147,7 @@ public final class Assistant {
             do {
                 audio = try deps.recorder.stop()
             } catch {
-                finish("Recording failed: \(error.localizedDescription)")
+                finish("Recording failed: \(error.localizedDescription)", .problem)
                 return
             }
             phase = .transcribing
@@ -146,7 +156,7 @@ public final class Assistant {
             do {
                 text = try await deps.transcriber.transcribe(audio)
             } catch {
-                finish("Couldn't transcribe: \(error.localizedDescription)")
+                finish("Couldn't transcribe: \(error.localizedDescription)", .problem)
                 return
             }
             try? FileManager.default.removeItem(at: audio)
@@ -162,23 +172,23 @@ public final class Assistant {
     public func handle(transcript rawText: String) async {
         let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         transcript = text
-        guard !text.isEmpty else { return finish("Didn't catch anything.") }
+        guard !text.isEmpty else { return finish("Didn't catch anything.", .info) }
 
         phase = .routing
         let decision: RoutingDecision
         do {
             decision = try await deps.router.route(text)
         } catch {
-            return finish("Couldn't work out the command: \(error.localizedDescription)")
+            return finish("Couldn't work out the command: \(error.localizedDescription)", .problem)
         }
         self.decision = decision
 
-        let result: (message: String, extracted: String?)
+        let result: Outcome
         switch decision.outcome {
         case .notACommand:
-            result = ("Didn't sound like a command: “\(text)”", nil)
+            result = Outcome("Didn't sound like a command: “\(text)”", .info)
         case .ambiguous(let top):
-            result = ("Not sure what you meant. Maybe \(top.map(\.displayName).joined(separator: " or "))?", nil)
+            result = Outcome("Not sure what you meant. Maybe \(top.map(\.displayName).joined(separator: " or "))?", .info)
         case .intent(let intent):
             phase = .acting
             result = await perform(intent, text)
@@ -189,11 +199,13 @@ public final class Assistant {
             choiceProbabilities: Dictionary(uniqueKeysWithValues: decision.choiceProbabilities.map { ($0.key.rawValue, $0.value) }),
             outcome: decision.outcome.logName, extracted: result.extracted,
             stateWasTruncated: decision.stateWasTruncated, result: result.message))
-        finish(result.message)
+        finish(result.message, result.kind)
     }
 
     public func startNewClaudeSession() async {
-        message = await perform(.newClaudeSession, "").message
+        let result = await perform(.newClaudeSession, "")
+        message = result.message
+        resultKind = result.kind
     }
 
     public func stopClaude() async {
@@ -206,56 +218,72 @@ public final class Assistant {
 
     // MARK: Private
 
-    private func finish(_ text: String) {
+    private func finish(_ text: String, _ kind: ResultKind) {
         message = text
+        resultKind = kind
         phase = .idle
     }
 
-    private func perform(_ intent: RoutedIntent, _ text: String) async -> (message: String, extracted: String?) {
+    private struct Outcome {
+        let message: String
+        let extracted: String?
+        let kind: ResultKind
+
+        init(_ message: String, _ kind: ResultKind, extracted: String? = nil) {
+            self.message = message
+            self.extracted = extracted
+            self.kind = kind
+        }
+    }
+
+    private func perform(_ intent: RoutedIntent, _ text: String) async -> Outcome {
         switch intent {
         case .openApp:
             switch matcher.match(text) {
             case .found(let app):
-                return (deps.opener.open(app.url) ? "Opened \(app.name)." : "Couldn't open \(app.name).", app.name)
+                let opened = deps.opener.open(app.url)
+                return Outcome(opened ? "Opened \(app.name)." : "Couldn't open \(app.name).",
+                               opened ? .success : .problem, extracted: app.name)
             case .notFound(let query, let suggestions):
-                guard !query.isEmpty else { return ("Which app should I open?", nil) }
+                guard !query.isEmpty else { return Outcome("Which app should I open?", .info) }
                 let hint = suggestions.isEmpty ? "" : " Closest: \(suggestions.joined(separator: ", "))."
-                return ("No app matching “\(query)”.\(hint)", query)
+                return Outcome("No app matching “\(query)”.\(hint)", .problem, extracted: query)
             }
 
         case .webSearch:
-            guard let query = SearchQueryExtractor.query(from: text) else { return ("What should I search for?", nil) }
+            guard let query = SearchQueryExtractor.query(from: text) else { return Outcome("What should I search for?", .info) }
             let opened = deps.opener.open(WebSearch.url(for: query))
-            return (opened ? "Searching the web for “\(query)”." : "Couldn't open the browser.", query)
+            return Outcome(opened ? "Searching the web for “\(query)”." : "Couldn't open the browser.",
+                           opened ? .success : .problem, extracted: query)
 
         case .newClaudeSession:
-            guard let claude = deps.claude else { return (Self.claudeMissing, nil) }
-            guard let project = activeProject else { return (Self.noProject, nil) }
-            if await claude.isRunning { return (Self.claudeBusy, nil) }
+            guard let claude = deps.claude else { return Outcome(Self.claudeMissing, .problem) }
+            guard let project = activeProject else { return Outcome(Self.noProject, .problem) }
+            if await claude.isRunning { return Outcome(Self.claudeBusy, .problem) }
             do {
                 try await claude.clearSession(for: project)
             } catch {
-                return ("Couldn't reset the Claude session: \(error.localizedDescription)", nil)
+                return Outcome("Couldn't reset the Claude session: \(error.localizedDescription)", .problem)
             }
             claudeEvents = []
-            return ("Started a new Claude session for \(project.lastPathComponent).", nil)
+            return Outcome("Started a new Claude session for \(project.lastPathComponent).", .success)
 
         case .askClaude:
-            guard let claude = deps.claude else { return (Self.claudeMissing, nil) }
-            guard let project = activeProject else { return (Self.noProject, nil) }
+            guard let claude = deps.claude else { return Outcome(Self.claudeMissing, .problem) }
+            guard let project = activeProject else { return Outcome(Self.noProject, .problem) }
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: project.path, isDirectory: &isDirectory), isDirectory.boolValue else {
-                return ("The active project folder no longer exists: \(project.path). Pick another from the menu.", nil)
+                return Outcome("The active project folder no longer exists: \(project.path). Pick another from the menu.", .problem)
             }
-            guard let prompt = ClaudePromptExtractor.prompt(from: text) else { return ("What should I ask Claude?", nil) }
-            if await claude.isRunning { return (Self.claudeBusy, prompt) }
+            guard let prompt = ClaudePromptExtractor.prompt(from: text) else { return Outcome("What should I ask Claude?", .info) }
+            if await claude.isRunning { return Outcome(Self.claudeBusy, .problem, extracted: prompt) }
             let events: AsyncStream<ClaudeEvent>
             do {
                 events = try await claude.run(prompt: prompt, project: project)
             } catch ClaudeRunnerError.busy {
-                return (Self.claudeBusy, prompt)
+                return Outcome(Self.claudeBusy, .problem, extracted: prompt)
             } catch {
-                return ("Couldn't start Claude: \(error.localizedDescription)", prompt)
+                return Outcome("Couldn't start Claude: \(error.localizedDescription)", .problem, extracted: prompt)
             }
             claudeEvents = []
             claudeError = nil
@@ -265,7 +293,7 @@ public final class Assistant {
                 for await event in events { self?.receive(event) }
                 self?.claudeJobEnded()
             }
-            return ("Claude is working on it in \(project.lastPathComponent)…", prompt)
+            return Outcome("Claude is working on it in \(project.lastPathComponent)…", .success, extracted: prompt)
         }
     }
 
