@@ -156,7 +156,7 @@ actor FakeWorkspace: WorkspaceControlling {
     func hide(appNamed name: String) throws { try record("hide(\(name))") }
     func sendWindowShortcut(_ shortcut: WindowShortcut) throws { try record("shortcut(\(shortcut))") }
     func frontFinderFolder() throws -> URL? {
-        if finderDenied { throw SystemControlError.automationDenied }
+        if finderDenied { throw SystemControlError.automationDenied("Finder") }
         return finderFolder
     }
     func createFolder(named name: String, in folder: URL) throws -> URL {

@@ -114,7 +114,7 @@ import Testing
 @MainActor @Test func permissionProblemsSayWhatToAllow() async {
     let cases: [(SystemControlError, RoutedIntent, String, PermissionKind)] = [
         (.accessibilityDenied, .lock, "Relay needs Accessibility access to press keys for you.", .accessibility),
-        (.automationDenied, .darkMode, "Relay needs permission to control System Events for dark mode.", .automation),
+        (.automationDenied("System Events"), .darkMode, "Relay needs permission to control System Events for dark mode.", .automation),
     ]
     for (error, intent, message, permission) in cases {
         let h = Harness(transcript: "do it", outcome: .intent(intent))

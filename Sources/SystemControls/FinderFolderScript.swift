@@ -9,7 +9,7 @@ public enum FinderFolderScript {
     /// Error -1743 means the user hasn't allowed Relay to control Finder.
     public static func interpret(_ result: CommandResult) throws -> URL? {
         guard result.status == 0 else {
-            if result.stderr.contains("-1743") { throw SystemControlError.automationDenied }
+            if result.stderr.contains("-1743") { throw SystemControlError.automationDenied("Finder") }
             return nil
         }
         let path = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)

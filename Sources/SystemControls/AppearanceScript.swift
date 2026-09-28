@@ -17,7 +17,7 @@ enum AppearanceScript {
         NSAppleScript(source: source(for: mode))?.executeAndReturnError(&error)
         guard let error else { return }
         let code = error[NSAppleScript.errorNumber] as? Int ?? 0
-        if code == -1743 { throw SystemControlError.automationDenied } // errAEEventNotPermitted
+        if code == -1743 { throw SystemControlError.automationDenied("System Events") } // errAEEventNotPermitted
         throw SystemControlError.failed(error[NSAppleScript.errorMessage] as? String ?? "AppleScript error \(code)")
     }
 }

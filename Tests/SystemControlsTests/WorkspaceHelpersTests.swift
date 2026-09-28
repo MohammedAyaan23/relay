@@ -115,7 +115,7 @@ private let areaShot = ScreenshotOptions.Target.area
     #expect(try FinderFolderScript.interpret(CommandResult(status: 0, stdout: "missing value\n", stderr: "")) == nil)
     #expect(try FinderFolderScript.interpret(CommandResult(status: 0, stdout: "", stderr: "")) == nil)
     #expect(try FinderFolderScript.interpret(CommandResult(status: 1, stdout: "", stderr: "execution error: Finder got an error (-1712)")) == nil)
-    #expect(throws: SystemControlError.automationDenied) {
+    #expect(throws: SystemControlError.automationDenied("Finder")) {
         _ = try FinderFolderScript.interpret(CommandResult(status: 1, stdout: "", stderr: "Not authorized to send Apple events to Finder. (-1743)"))
     }
 }

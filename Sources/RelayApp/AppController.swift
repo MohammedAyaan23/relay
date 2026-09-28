@@ -108,6 +108,7 @@ final class AppController {
         case .accessibility: "Privacy_Accessibility"
         case .screenRecording: "Privacy_ScreenCapture"
         case .automation: "Privacy_Automation"
+        case .reminders: "Privacy_Reminders"
         }
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)")!)
     }

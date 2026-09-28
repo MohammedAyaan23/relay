@@ -11,7 +11,9 @@ public enum SystemControlError: Error, Equatable {
     case noVolumeControl
     case shortcutMissing(String)
     case shortcutFailed(String, reason: String)
-    case automationDenied
+    /// The user hasn't allowed Relay to control this app (AppleScript error -1743).
+    case automationDenied(String)
+    case remindersDenied
     case accessibilityDenied
     case screenRecordingDenied
     case failed(String)

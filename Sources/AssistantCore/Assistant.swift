@@ -23,6 +23,7 @@ public enum PermissionKind: Sendable, Equatable {
     case accessibility
     case screenRecording
     case automation
+    case reminders
 }
 
 public struct AssistantDependencies {
@@ -551,9 +552,15 @@ public final class Assistant {
                 return Outcome("\(feature) needs a one-time setup.", .info)
             case .shortcutFailed(let name, let reason):
                 return Outcome("The \(name) shortcut failed: \(reason)", .problem)
-            case .automationDenied:
+            case .automationDenied(let app):
                 missingPermission = .automation
+                if app == "Notes" {
+                    return Outcome("Relay needs permission to control Notes to save notes.", .problem)
+                }
                 return Outcome("Relay needs permission to control System Events for dark mode.", .problem)
+            case .remindersDenied:
+                missingPermission = .reminders
+                return Outcome("Relay needs Reminders access to add reminders.", .problem)
             case .accessibilityDenied:
                 missingPermission = .accessibility
                 return Outcome("Relay needs Accessibility access to press keys for you.", .problem)
@@ -631,7 +638,7 @@ public final class Assistant {
         if let location { return (Self.url(for: location), "") }
         do {
             if let finder = try await deps.workspace.frontFinderFolder() { return (finder, "") }
-        } catch SystemControlError.automationDenied {
+        } catch SystemControlError.automationDenied(_) {
             return (Self.url(for: .desktop), Self.finderNote)
         } catch {}
         return (Self.url(for: .desktop), "")
