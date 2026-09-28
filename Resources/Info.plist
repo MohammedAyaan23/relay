@@ -13,6 +13,10 @@
     <key>LSUIElement</key><true/>
     <key>NSAppleEventsUsageDescription</key>
     <string>Relay controls System Events to switch dark mode when you ask.</string>
+    <key>NSRemindersFullAccessUsageDescription</key>
+    <string>Relay adds reminders you ask for to Apple Reminders.</string>
+    <key>NSRemindersUsageDescription</key>
+    <string>Relay adds reminders you ask for to Apple Reminders.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Relay listens only between your two hotkey presses, to hear your command.</string>
     <key>NSSpeechRecognitionUsageDescription</key>

@@ -56,4 +56,12 @@ microphone/speech permission again after rebuilding.
 - [ ] "Screenshot an area", press Esc: the pill says "Screenshot cancelled" (not an error)
 - [ ] First "make a new folder called x" with Finder in front: the pill keeps animating while the Finder permission prompt is up
 - [ ] "How close is the moon" / "where is Taiwan" do NOT close a window or search files; "close the Safari window" while another app is in front says "Safari isn't in front."
+- [ ] Copy some text, then with TextEdit in front say "type see you soon.": "see you soon." appears; paste again afterwards and your original copied text comes back
+- [ ] "Type" into a browser text field (e.g. a search box) works the same
+- [ ] "Note that the car needs servicing": Relay asks to control Notes once; a note called "Relay" gets a dated line at the top; a second note goes above the first
+- [ ] "Remind me to buy milk": Relay asks for Reminders once; the reminder appears in your default list with no alert
+- [ ] "Remind me in 2 minutes to stretch": the reminder alerts about 2 minutes later
+- [ ] "Set a pasta timer for 1 minute": the panel shows it counting down; a notification with sound arrives when it ends
+- [ ] Start a 2-minute timer, quit Relay, wait: the notification still arrives
+- [ ] Start two timers; "how long is left on the timer" lists both; "cancel the pasta timer" removes only that one; the panel's ✕ cancels the other
 - [ ] `~/Library/Application Support/Relay/decisions.jsonl` has one line per command

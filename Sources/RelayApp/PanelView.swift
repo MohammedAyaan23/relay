@@ -38,6 +38,11 @@ struct PanelView: View {
                     Task { await assistant.pick(match) }
                 }
             }
+            if !assistant.timers.isEmpty {
+                TimersView(timers: assistant.timers) { timer in
+                    Task { await assistant.cancelTimer(timer) }
+                }
+            }
             if let transcript = assistant.transcript, !transcript.isEmpty {
                 Label(transcript, systemImage: "quote.bubble").foregroundStyle(.secondary)
             }
@@ -71,6 +76,7 @@ struct PanelView: View {
             Spacer(minLength: 0)
         }
         .padding(14)
+        .task { await assistant.refreshTimers() }
         .frame(minWidth: 360, minHeight: 240)
     }
 
@@ -198,5 +204,41 @@ struct FileMatchesView: View {
         let path = folder.path
         if path.hasPrefix(iCloud) { return "iCloud Drive" + path.dropFirst(iCloud.count) }
         return path.hasPrefix(home) ? "~" + path.dropFirst(home.count) : path
+    }
+}
+
+/// Running timers with a live countdown and a ✕ to cancel each.
+struct TimersView: View {
+    let timers: [RelayTimer]
+    let cancel: (RelayTimer) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Timers").font(.headline)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(timers.filter { $0.endsAt > context.date }) { timer in
+                        HStack {
+                            Text(CaptureFormat.displayName(timer))
+                            Spacer()
+                            Text(Self.clock(timer.endsAt.timeIntervalSince(context.date))).monospacedDigit()
+                            Button { cancel(timer) } label: { Image(systemName: "xmark.circle.fill") }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// "8:59", or "1:05:00" for timers over an hour.
+    static func clock(_ remaining: TimeInterval) -> String {
+        let seconds = max(0, Int(remaining.rounded(.up)))
+        return seconds >= 3600
+            ? String(format: "%d:%02d:%02d", seconds / 3600, (seconds % 3600) / 60, seconds % 60)
+            : String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 }

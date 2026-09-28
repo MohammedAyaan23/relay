@@ -84,6 +84,12 @@ The due date:
      moves to tomorrow.
    - If it has a day but no time ("on friday", "tomorrow"), that day at 9:00 AM.
 
+Implementation notes (measured 2026-09-28): `NSDataDetector` gives day-only phrases a default of 12:00
+noon, so the parser decides whether a time was spoken from the matched text: digits with am/pm, "h:mm",
+"at <digit>", or morning/afternoon/evening/tonight/night/noon/midnight. It also resolves dates against the
+real clock only, so the parser keeps the detector's day offset and time and applies them to the given `now`.
+Weekday tests ("on friday") therefore use the real current date.
+
 The title:
 - It's the transcript minus a leading "remind me to", "remind me", "set a reminder to", "add a reminder to",
   or "don't let me forget to".
