@@ -105,6 +105,8 @@ actor FakeSystem: SystemControlling {
     var muteFailure: SystemControlError?
 
     func failMute(with error: SystemControlError?) { muteFailure = error }
+    var keyboardResult: Int??
+    func setKeyboardResult(_ value: Int?) { keyboardResult = .some(value) }
     func setCurrentVolume(_ value: Int) { currentVolume = value }
     func fail(with error: SystemControlError?) { failure = error }
 
@@ -124,6 +126,12 @@ actor FakeSystem: SystemControlling {
     func setFocus(on: Bool) throws { try record("setFocus(\(on))") }
     func setDarkMode(_ mode: SwitchCommand) throws { try record("setDarkMode(\(mode))") }
     func lockScreen() throws { try record("lockScreen()") }
+    func adjustKeyboardLight(_ command: LevelCommand) throws -> Int? {
+        try record("keyboard(\(command))")
+        if let keyboardResult { return keyboardResult }
+        if case .set(let percent) = command { return percent }
+        return nil
+    }
     func pressMediaKey(_ key: MediaKey) throws { try record("pressMediaKey(\(key))") }
 }
 

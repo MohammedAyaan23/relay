@@ -5,6 +5,8 @@ enum KeyEvents {
     // NX_KEYTYPE_* values from IOKit's ev_keymap.h.
     static let brightnessUp: Int32 = 2
     static let brightnessDown: Int32 = 3
+    static let illuminationUp: Int32 = 21   // keyboard backlight
+    static let illuminationDown: Int32 = 22
 
     static func code(for key: MediaKey) -> Int32 {
         switch key {

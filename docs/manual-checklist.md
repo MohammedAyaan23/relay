@@ -30,6 +30,7 @@ microphone/speech permission again after rebuilding.
 - [ ] "Switch to dark mode" / "switch to light mode": Relay asks for Automation (System Events) once; appearance switches
 - [ ] "Turn on do not disturb" / "turn off do not disturb": after building the Focus shortcuts, the Focus icon in Control Center changes
 - [ ] "Lock my Mac": the screen locks immediately
+- [ ] "Keyboard light to 30 percent" / "keyboard brighter" / "dim the keyboard" / "turn the keyboard light off": the MacBook keyboard backlight changes, with no permission prompt; the pill shows the new level
 - [ ] "Pause" / "next song" / "previous track" control Music, and also a playing YouTube tab
 - [ ] "Take a screenshot": Relay asks for Screen Recording once (you may need to reopen Relay); the file appears in your screenshot folder and the pill names the folder
 - [ ] After denying a permission and then allowing it in System Settings, the same spoken command works without relaunching (except Screen Recording, which macOS may require a relaunch for)

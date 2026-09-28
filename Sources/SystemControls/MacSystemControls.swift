@@ -39,6 +39,23 @@ public final class MacSystemControls: SystemControlling {
         try await MainActor.run { try AppearanceScript.run(mode) }
     }
 
+    public func adjustKeyboardLight(_ command: LevelCommand) async throws -> Int? {
+        // Precise route first: no permission, exact level.
+        if let backlight = KeyboardBacklight.make() {
+            let target = KeyboardLightPlan.target(for: command, current: backlight.level())
+            if backlight.set(target) { return Int((target * 100).rounded()) }
+        }
+        // Fallback: the keyboard-illumination keys (public, needs Accessibility), spaced so none are dropped.
+        try Permissions.requireAccessibility()
+        let presses = KeyboardLightPlan.presses(for: command)
+        for code in Array(repeating: KeyEvents.illuminationDown, count: presses.down)
+            + Array(repeating: KeyEvents.illuminationUp, count: presses.up) {
+            await MainActor.run { KeyEvents.pressSystemKey(code) }
+            try? await Task.sleep(for: .milliseconds(60))
+        }
+        return KeyboardLightPlan.resultingPercent(for: command)
+    }
+
     public func lockScreen() async throws {
         try Permissions.requireAccessibility()
         await MainActor.run { KeyEvents.pressLockShortcut() }

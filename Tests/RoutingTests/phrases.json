@@ -61,6 +61,9 @@
     {"text": "25 minute pomodoro", "expected": "start_timer"},
     {"text": "how long is left on the timer", "expected": "timer_status"},
     {"text": "cancel the pasta timer", "expected": "cancel_timer"},
-    {"text": "stop the timer", "expected": "cancel_timer"}
+    {"text": "stop the timer", "expected": "cancel_timer"},
+    {"text": "keyboard brighter", "expected": "keyboard_light"},
+    {"text": "turn the keyboard light off", "expected": "keyboard_light"},
+    {"text": "keyboard backlight to 30 percent", "expected": "keyboard_light"}
   ]
 }

@@ -336,6 +336,24 @@ public final class Assistant {
             }
             return await control("change the brightness") { try await self.changeBrightness(command) }
 
+        case .keyboardLight:
+            let words = " \(TextNormalizer.normalize(text)) "
+            // "off" is 0% and "on" is 50%, unless a level was spoken ("on at 30 percent").
+            let command: LevelCommand? = words.contains(" off ") ? .set(0)
+                : LevelParser.parse(text) ?? (words.contains(" on ") ? .set(50) : nil)
+            guard let command else {
+                return Outcome("What keyboard brightness? Try a percentage, like 50 percent.", .info)
+            }
+            return await control("change the keyboard light") {
+                let percent = try await self.deps.system.adjustKeyboardLight(command)
+                if let percent {
+                    self.resultLevel = Double(percent) / 100
+                    return Outcome(percent == 0 ? "Keyboard light off" : "Keyboard light \(percent)%", .success)
+                }
+                if case .down = command { return Outcome("Keyboard dimmer", .success) }
+                return Outcome("Keyboard brighter", .success)
+            }
+
         case .darkMode:
             let mode = SwitchParser.darkMode(text)
             return await control("switch dark mode") {

@@ -5,6 +5,7 @@ public enum RoutedIntent: String, CaseIterable, Sendable, Codable {
     case newClaudeSession = "new_claude_session"
     case volume
     case brightness
+    case keyboardLight = "keyboard_light"
     case darkMode = "dark_mode"
     case focus
     case lock
@@ -38,6 +39,7 @@ public enum RoutedIntent: String, CaseIterable, Sendable, Codable {
         case .newClaudeSession: "start a new Claude session"
         case .volume: "change the volume"
         case .brightness: "change the brightness"
+        case .keyboardLight: "change the keyboard light"
         case .darkMode: "switch dark mode"
         case .focus: "change Do Not Disturb"
         case .lock: "lock the screen"

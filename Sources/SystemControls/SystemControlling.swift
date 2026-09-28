@@ -35,6 +35,8 @@ public protocol SystemControlling: Sendable {
     /// Turns Do Not Disturb on or off through the "Relay Focus On/Off" shortcuts.
     func setFocus(on: Bool) async throws
     func setDarkMode(_ mode: SwitchCommand) async throws
+    /// Changes the keyboard backlight; returns the resulting percentage when it's known.
+    func adjustKeyboardLight(_ command: LevelCommand) async throws -> Int?
     func lockScreen() async throws
     func pressMediaKey(_ key: MediaKey) async throws
 }
