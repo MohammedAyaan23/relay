@@ -29,10 +29,28 @@ enum KeyEvents {
 
     /// ⌃⌘Q, the system Lock Screen shortcut.
     @MainActor static func pressLockShortcut() {
+        pressKey(12 /* kVK_ANSI_Q */, flags: [.maskControl, .maskCommand])
+    }
+
+    static func shortcut(for shortcut: WindowShortcut) -> (key: CGKeyCode, flags: CGEventFlags) {
+        switch shortcut {
+        case .minimize: (46 /* kVK_ANSI_M */, .maskCommand)
+        case .fullScreen: (3 /* kVK_ANSI_F */, [.maskControl, .maskCommand])
+        case .close: (13 /* kVK_ANSI_W */, .maskCommand)
+        }
+    }
+
+    @MainActor static func press(_ shortcut: WindowShortcut) {
+        let keys = self.shortcut(for: shortcut)
+        pressKey(keys.key, flags: keys.flags)
+    }
+
+    /// Posts a key down and up with modifiers to the frontmost app.
+    @MainActor static func pressKey(_ key: CGKeyCode, flags: CGEventFlags) {
         let source = CGEventSource(stateID: .hidSystemState)
         for isDown in [true, false] {
-            let event = CGEvent(keyboardEventSource: source, virtualKey: 12 /* kVK_ANSI_Q */, keyDown: isDown)
-            event?.flags = [.maskControl, .maskCommand]
+            let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: isDown)
+            event?.flags = flags
             event?.post(tap: .cghidEventTap)
         }
     }
