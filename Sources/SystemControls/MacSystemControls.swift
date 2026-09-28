@@ -48,18 +48,4 @@ public final class MacSystemControls: SystemControlling {
         try Permissions.requireAccessibility()
         await MainActor.run { KeyEvents.pressSystemKey(KeyEvents.code(for: key)) }
     }
-
-    public func takeScreenshot() async throws -> URL {
-        try Permissions.requireScreenRecording()
-        let folder = ScreenshotLocation.folder(
-            defaultsValue: UserDefaults(suiteName: "com.apple.screencapture")?.string(forKey: "location"),
-            home: FileManager.default.homeDirectoryForCurrentUser)
-        let file = folder.appendingPathComponent(ScreenshotLocation.fileName(for: Date()))
-        let result = try await runner.run("/usr/sbin/screencapture", ["-x", file.path])
-        guard result.status == 0, FileManager.default.fileExists(atPath: file.path) else {
-            let reason = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            throw SystemControlError.failed(reason.isEmpty ? "screencapture exited \(result.status)" : reason)
-        }
-        return file
-    }
 }

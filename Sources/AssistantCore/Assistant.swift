@@ -12,6 +12,11 @@ public enum ResultKind: Sendable, Equatable {
     case success, info, problem
 }
 
+public enum FileMatchAction: Sendable, Equatable {
+    case open
+    case reveal
+}
+
 public enum PermissionKind: Sendable, Equatable {
     case microphone
     case speechRecognition
@@ -27,6 +32,7 @@ public struct AssistantDependencies {
     public var apps: @Sendable () -> [InstalledApp]
     public var opener: any URLOpening
     public var system: any SystemControlling
+    public var workspace: any WorkspaceControlling
     /// nil when the claude executable couldn't be found.
     public var claude: (any ClaudeJobRunning)?
     public var log: any DecisionLogging
@@ -34,7 +40,7 @@ public struct AssistantDependencies {
     public var notify: @MainActor (String, String) -> Void
 
     public init(recorder: any AudioRecording, transcriber: any Transcribing, router: any IntentRouting,
-                apps: @escaping @Sendable () -> [InstalledApp], opener: any URLOpening, system: any SystemControlling,
+                apps: @escaping @Sendable () -> [InstalledApp], opener: any URLOpening, system: any SystemControlling, workspace: any WorkspaceControlling,
                 claude: (any ClaudeJobRunning)?, log: any DecisionLogging,
                 notify: @escaping @MainActor (String, String) -> Void) {
         self.recorder = recorder
@@ -43,6 +49,7 @@ public struct AssistantDependencies {
         self.apps = apps
         self.opener = opener
         self.system = system
+        self.workspace = workspace
         self.claude = claude
         self.log = log
         self.notify = notify
@@ -69,6 +76,9 @@ public final class Assistant {
     public private(set) var resultLevel: Double?
     /// The helper shortcut the user needs to set up, e.g. "Relay Brightness".
     public private(set) var missingShortcut: String?
+    /// Files matching a find/open/reveal request when there was more than one; the panel lists them.
+    public private(set) var fileMatches: [FileMatch] = []
+    public private(set) var fileMatchAction: FileMatchAction = .open
     public private(set) var missingPermission: PermissionKind?
     /// Setup failed for a reason other than permissions (e.g. a dropped model download); offer a retry.
     public private(set) var prepareFailed = false
@@ -146,6 +156,7 @@ public final class Assistant {
                 resultKind = nil
                 resultLevel = nil
                 missingShortcut = nil
+                fileMatches = []
                 missingPermission = nil
                 phase = .listening
                 message = "Listening… press the hotkey again when you're done."
@@ -346,9 +357,22 @@ public final class Assistant {
             }
 
         case .screenshot:
+            let options = ScreenshotOptionsParser.parse(text)
+            let kind = switch options.target {
+            case .screen: "Screenshot"
+            case .window: "Window screenshot"
+            case .area: "Area screenshot"
+            }
             return await control("take a screenshot") {
-                let file = try await self.deps.system.takeScreenshot()
-                return Outcome("Screenshot saved to \(file.deletingLastPathComponent().lastPathComponent)", .success)
+                switch try await self.deps.workspace.captureScreenshot(options) {
+                case .saved(let file):
+                    if options.openAfter { try await self.deps.workspace.open(file) }
+                    return Outcome("\(kind) saved to \(file.deletingLastPathComponent().lastPathComponent)", .success)
+                case .copied:
+                    return Outcome("\(kind) copied to clipboard", .success)
+                case .cancelled:
+                    return Outcome("Screenshot cancelled", .info)
+                }
             }
 
         case .mediaPlayPause:
@@ -369,9 +393,73 @@ public final class Assistant {
                 return Outcome("Previous track", .success)
             }
 
-        case .quitApp, .hideApp, .minimizeWindow, .fullScreen, .closeWindow,
-             .createFolder, .createFile, .findFile, .openFile, .revealFile:
-            return Outcome("Relay can't do that yet.", .info)
+        case .quitApp, .hideApp:
+            let quitting = intent == .quitApp
+            return await control(quitting ? "quit" : "hide") {
+                let name = try await self.resolveApp(AppTargetParser.parse(text))
+                if quitting {
+                    try await self.deps.workspace.quit(appNamed: name)
+                } else {
+                    try await self.deps.workspace.hide(appNamed: name)
+                }
+                return Outcome(quitting ? "Quit \(name)" : "Hid \(name)", .success, extracted: name)
+            }
+
+        case .minimizeWindow, .fullScreen, .closeWindow:
+            let shortcut: WindowShortcut = intent == .minimizeWindow ? .minimize : intent == .fullScreen ? .fullScreen : .close
+            let verb = intent == .minimizeWindow ? "minimize" : intent == .fullScreen ? "make full screen" : "close"
+            return await control(verb) {
+                let app = await self.deps.workspace.frontmostAppName() ?? "the window"
+                try await self.deps.workspace.sendWindowShortcut(shortcut)
+                let message = switch shortcut {
+                case .minimize: "Minimized \(app)"
+                case .fullScreen: "Toggled full screen"
+                case .close: "Closed window"
+                }
+                return Outcome(message, .success)
+            }
+
+        case .createFolder, .createFile:
+            let isFolder = intent == .createFolder
+            let request = FileRequestParser.parse(text)
+            guard let name = request.name else {
+                return Outcome(isFolder ? "What should the folder be called?" : "What should the file be called?", .info)
+            }
+            return await control("create “\(name)”") {
+                let (folder, note) = await self.creationFolder(for: request.location)
+                let place = Self.placeDescription(folder)
+                if isFolder {
+                    let url = try await self.deps.workspace.createFolder(named: name, in: folder)
+                    return Outcome("Created folder “\(url.lastPathComponent)” \(place)\(note)", .success, extracted: url.path)
+                }
+                let fileName = "\(name).\(request.fileExtension ?? "txt")"
+                let url = try await self.deps.workspace.createFile(named: fileName, in: folder)
+                return Outcome("Created “\(url.lastPathComponent)” \(place)\(note)", .success, extracted: url.path)
+            }
+
+        case .openFile, .findFile, .revealFile:
+            guard let query = FileRequestParser.query(text) else { return Outcome("Which file?", .info) }
+            if intent == .revealFile, let place = FileLocation(rawValue: query) {
+                return await control("show \(Self.folderName(place))") {
+                    try await self.deps.workspace.reveal(Self.url(for: place))
+                    return Outcome("Showed \(Self.folderName(place)) in Finder", .success)
+                }
+            }
+            let action: FileMatchAction = intent == .openFile ? .open : .reveal
+            return await control("search your files") {
+                let matches = try await self.deps.workspace.searchFiles(query)
+                switch matches.count {
+                case 0:
+                    return Outcome("No files matching “\(query)”.", .info, extracted: query)
+                case 1:
+                    return try await self.act(on: matches[0], action)
+                default:
+                    self.fileMatches = matches
+                    self.fileMatchAction = action
+                    return Outcome("Found \(matches.count) files matching “\(query)”. Pick one in the panel.",
+                                   .info, extracted: query)
+                }
+            }
         }
     }
 
@@ -456,12 +544,97 @@ public final class Assistant {
                 return Outcome("Relay needs Screen Recording permission to take screenshots. Allow it, then quit and reopen Relay.", .problem)
             case .failed(let reason):
                 return Outcome("Couldn't \(action): \(reason)", .problem)
-            case .appNotRunning, .noFrontWindow, .searchFailed:
-                return Outcome("Couldn't \(action).", .problem)
+            case .appNotRunning(let name):
+                return Outcome("\(name) isn't running.", .problem)
+            case .noFrontWindow:
+                return Outcome("There's no app window in front to \(action).", .problem)
+            case .searchFailed(let reason):
+                return Outcome("Couldn't search your files: \(reason)", .problem)
             }
+        } catch let error as NoMatchingApp {
+            let running = error.running.isEmpty ? "" : " Running: \(error.running.joined(separator: ", "))."
+            return Outcome("\(error.name) isn't running.\(running)", .problem)
         } catch {
             return Outcome("Couldn't \(action): \(error.localizedDescription)", .problem)
         }
+    }
+
+    /// Opens or reveals one file the user picked from the panel list.
+    public func pick(_ match: FileMatch) async {
+        guard FileManager.default.fileExists(atPath: match.url.path) else {
+            message = "That file is no longer there."
+            resultKind = .problem
+            return
+        }
+        let action = fileMatchAction
+        let result = await control(action == .open ? "open “\(match.name)”" : "show “\(match.name)”") {
+            try await self.act(on: match, action)
+        }
+        message = result.message
+        resultKind = result.kind
+        if result.kind == .success { fileMatches = [] }
+    }
+
+    private func act(on match: FileMatch, _ action: FileMatchAction) async throws -> Outcome {
+        switch action {
+        case .open:
+            try await deps.workspace.open(match.url)
+            return Outcome("Opened “\(match.name)”", .success, extracted: match.url.path)
+        case .reveal:
+            try await deps.workspace.reveal(match.url)
+            return Outcome("Showed “\(match.name)” in Finder", .success, extracted: match.url.path)
+        }
+    }
+
+    private struct NoMatchingApp: Error {
+        let name: String
+        let running: [String]
+    }
+
+    private func resolveApp(_ target: AppTarget) async throws -> String {
+        switch target {
+        case .frontmost:
+            guard let name = await deps.workspace.frontmostAppName() else { throw SystemControlError.noFrontWindow }
+            return name
+        case .named(let spoken):
+            switch AppMatcher(apps: await deps.workspace.runningApps()).match(spoken) {
+            case .found(let app):
+                return app.name
+            case .notFound(let query, let suggestions):
+                throw NoMatchingApp(name: (query.isEmpty ? spoken : query).capitalized, running: suggestions)
+            }
+        }
+    }
+
+    static let finderNote = " (allow Relay to control Finder to use the open Finder window)"
+
+    /// Where to create: a spoken place, else the front Finder window's folder, else the Desktop.
+    private func creationFolder(for location: FileLocation?) async -> (URL, String) {
+        if let location { return (Self.url(for: location), "") }
+        do {
+            if let finder = try await deps.workspace.frontFinderFolder() { return (finder, "") }
+        } catch SystemControlError.automationDenied {
+            return (Self.url(for: .desktop), Self.finderNote)
+        } catch {}
+        return (Self.url(for: .desktop), "")
+    }
+
+    static func url(for location: FileLocation) -> URL {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        return location == .home ? home : home.appendingPathComponent(folderName(location))
+    }
+
+    static func folderName(_ location: FileLocation) -> String {
+        switch location {
+        case .desktop: "Desktop"
+        case .documents: "Documents"
+        case .downloads: "Downloads"
+        case .home: "Home"
+        }
+    }
+
+    static func placeDescription(_ folder: URL) -> String {
+        folder == url(for: .desktop) ? "on Desktop" : "in \(folder.lastPathComponent)"
     }
 
     private func claudeJobEnded() {

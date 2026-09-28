@@ -25,6 +25,7 @@ final class AppController {
             apps: { AppIndex.scan() },
             opener: WorkspaceOpener(),
             system: MacSystemControls(),
+            workspace: MacWorkspaceControls(),
             claude: claudeURL.map { ClaudeRunner(executable: $0, sessions: SessionStore(fileURL: SessionStore.defaultFileURL)) },
             log: DecisionLog(fileURL: DecisionLog.defaultFileURL),
             notify: { title, body in Notifier.post(title: title, body: body) })

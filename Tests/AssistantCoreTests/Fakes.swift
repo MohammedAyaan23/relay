@@ -125,9 +125,54 @@ actor FakeSystem: SystemControlling {
     func setDarkMode(_ mode: SwitchCommand) throws { try record("setDarkMode(\(mode))") }
     func lockScreen() throws { try record("lockScreen()") }
     func pressMediaKey(_ key: MediaKey) throws { try record("pressMediaKey(\(key))") }
-    func takeScreenshot() throws -> URL {
-        try record("takeScreenshot()")
-        return URL(fileURLWithPath: "/Users/test/Desktop/Screenshot 2026-09-28 at 11.48.03.png")
+}
+
+actor FakeWorkspace: WorkspaceControlling {
+    private(set) var calls: [String] = []
+    var running = [InstalledApp(name: "Slack", url: URL(fileURLWithPath: "/Applications/Slack.app")),
+                   InstalledApp(name: "Safari", url: URL(fileURLWithPath: "/Applications/Safari.app"))]
+    var frontmost: String? = "Safari"
+    var finderFolder: URL?
+    var finderDenied = false
+    var matches: [FileMatch] = []
+    var screenshotResult = ScreenshotResult.saved(URL(fileURLWithPath: "/Users/test/Desktop/Screenshot.png"))
+    var failure: SystemControlError?
+
+    func setFrontmost(_ name: String?) { frontmost = name }
+    func setFinderFolder(_ url: URL?) { finderFolder = url }
+    func denyFinder() { finderDenied = true }
+    func setMatches(_ list: [FileMatch]) { matches = list }
+    func setScreenshotResult(_ result: ScreenshotResult) { screenshotResult = result }
+    func fail(with error: SystemControlError?) { failure = error }
+
+    private func record(_ call: String) throws {
+        calls.append(call)
+        if let failure { throw failure }
+    }
+
+    func runningApps() -> [InstalledApp] { running }
+    func frontmostAppName() -> String? { frontmost }
+    func quit(appNamed name: String) throws { try record("quit(\(name))") }
+    func hide(appNamed name: String) throws { try record("hide(\(name))") }
+    func sendWindowShortcut(_ shortcut: WindowShortcut) throws { try record("shortcut(\(shortcut))") }
+    func frontFinderFolder() throws -> URL? {
+        if finderDenied { throw SystemControlError.automationDenied }
+        return finderFolder
+    }
+    func createFolder(named name: String, in folder: URL) throws -> URL {
+        try record("createFolder(\(name), \(folder.lastPathComponent))")
+        return folder.appendingPathComponent(name)
+    }
+    func createFile(named name: String, in folder: URL) throws -> URL {
+        try record("createFile(\(name), \(folder.lastPathComponent))")
+        return folder.appendingPathComponent(name)
+    }
+    func searchFiles(_ query: String) throws -> [FileMatch] { try record("search(\(query))"); return matches }
+    func open(_ url: URL) throws { try record("open(\(url.lastPathComponent))") }
+    func reveal(_ url: URL) throws { try record("reveal(\(url.lastPathComponent))") }
+    func captureScreenshot(_ options: ScreenshotOptions) throws -> ScreenshotResult {
+        try record("screenshot(\(options.target), clipboard: \(options.toClipboard))")
+        return screenshotResult
     }
 }
 
@@ -140,6 +185,7 @@ final class Harness {
     let router: FakeRouter
     let opener = FakeOpener()
     let system = FakeSystem()
+    let workspace = FakeWorkspace()
     let claude: FakeClaude?
     let log = MemoryLog()
     private(set) var notifications: [String] = []
@@ -154,7 +200,7 @@ final class Harness {
         try? FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
         let deps = AssistantDependencies(
             recorder: recorder, transcriber: transcriber, router: router,
-            apps: { [safari] }, opener: opener, system: system, claude: claude, log: log,
+            apps: { [safari] }, opener: opener, system: system, workspace: workspace, claude: claude, log: log,
             notify: { [weak self] title, _ in self?.notifications.append(title) })
         assistant = Assistant(dependencies: deps, activeProject: project)
     }

@@ -35,6 +35,4 @@ public protocol SystemControlling: Sendable {
     func setDarkMode(_ mode: SwitchCommand) async throws
     func lockScreen() async throws
     func pressMediaKey(_ key: MediaKey) async throws
-    /// Returns where the screenshot was saved.
-    func takeScreenshot() async throws -> URL
 }

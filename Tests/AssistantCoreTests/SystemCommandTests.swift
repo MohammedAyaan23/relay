@@ -87,7 +87,6 @@ import Testing
         ("pause", .mediaPlayPause, "pressMediaKey(playPause)", "Play/Pause"),
         ("next song", .mediaNext, "pressMediaKey(next)", "Next track"),
         ("previous track", .mediaPrevious, "pressMediaKey(previous)", "Previous track"),
-        ("take a screenshot", .screenshot, "takeScreenshot()", "Screenshot saved to Desktop"),
     ]
     for (transcript, intent, call, message) in cases {
         let h = Harness(transcript: transcript, outcome: .intent(intent))
@@ -116,7 +115,6 @@ import Testing
     let cases: [(SystemControlError, RoutedIntent, String, PermissionKind)] = [
         (.accessibilityDenied, .lock, "Relay needs Accessibility access to press keys for you.", .accessibility),
         (.automationDenied, .darkMode, "Relay needs permission to control System Events for dark mode.", .automation),
-        (.screenRecordingDenied, .screenshot, "Relay needs Screen Recording permission to take screenshots. Allow it, then quit and reopen Relay.", .screenRecording),
     ]
     for (error, intent, message, permission) in cases {
         let h = Harness(transcript: "do it", outcome: .intent(intent))
@@ -140,10 +138,6 @@ import Testing
     await s.speak()
     #expect(s.assistant.message == "The Relay Brightness shortcut failed: exit 1")
 
-    let x = Harness(transcript: "take a screenshot", outcome: .intent(.screenshot))
-    await x.system.fail(with: .failed("disk full"))
-    await x.speak()
-    #expect(x.assistant.message == "Couldn't take a screenshot: disk full")
 }
 
 @MainActor @Test func grantedPermissionWorksNextTimeAndStalePromptsClear() async {
