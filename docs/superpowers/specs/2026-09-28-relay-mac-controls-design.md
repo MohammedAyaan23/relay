@@ -98,7 +98,8 @@ The entries for sub-project A, in order:
 or "skip" together with "song", "track" or "one". So "my brother is visiting next week" does not match.
 
 **Document nouns** are: file, files, document, pdf, spreadsheet, presentation, report, agreement, contract,
-invoice, resume. They stop "find my resume file" from being read as "resume playback".
+invoice. They stop "find my resume file" from being read as "resume playback" (the word "file" excludes it).
+"resume" itself is not a document noun, because that would block "resume the song".
 
 **New `RoutedIntent` cases:** `volume`, `brightness`, `darkMode`, `focus`, `lock`, `screenshot`,
 `mediaPlayPause`, `mediaNext`, `mediaPrevious`, each with a `displayName`. The Laya choice question is
@@ -156,9 +157,9 @@ public protocol SystemControlling: Sendable {
 | Action | Mechanism | Permission (requested on first use) |
 |---|---|---|
 | Volume | CoreAudio default output device: virtual main volume (scalar 0…1) and the mute property. Relative "up" also unmutes | none |
-| Brightness set to N% | Shortcuts bridge: `shortcuts run "Relay Brightness" -i <temp file containing N>` | one-time shortcut import |
+| Brightness set to N% | Shortcuts bridge: `shortcuts run "Relay Brightness" -i <temp file containing N÷100, e.g. 0.70>` | one-time shortcut setup |
 | Brightness up/down | system brightness key events. "up"/"down" is 2 presses, "a bit" is 1 press (each ≈ 1/16) | Accessibility |
-| Focus on/off | Shortcuts bridge: `shortcuts run "Relay Focus" -i <temp file containing on/off>`, sets Do Not Disturb | one-time shortcut import |
+| Focus on/off | Shortcuts bridge: `shortcuts run "Relay Focus On"` or `"Relay Focus Off"` (no input), sets Do Not Disturb | one-time shortcut setup |
 | Dark mode | `NSAppleScript`: `tell application "System Events" to tell appearance preferences to set dark mode to <true/false/not dark mode>` | Automation (System Events) |
 | Lock | posts ⌃⌘Q key events, the system Lock Screen shortcut | Accessibility |
 | Media | posts system-defined media-key events (play/pause, next, previous), the same as the keyboard keys, so they control whatever is Now Playing. Play and pause are one toggle | Accessibility |
@@ -175,17 +176,25 @@ playback).
 
 ### 4.1 Shortcuts bridge
 
-- Relay ships two signed shortcut files, `Resources/Shortcuts/Relay Brightness.shortcut` and
-  `Resources/Shortcuts/Relay Focus.shortcut`, signed with `shortcuts sign --mode anyone`.
-  `scripts/make-app.sh` copies them into `Relay.app/Contents/Resources/Shortcuts/`, and Relay loads them
-  through `Bundle.main`. These are the app's own resources, not a SwiftPM resource bundle.
-- **Relay Brightness:** takes the input as a number, and sets brightness to input ÷ 100.
-- **Relay Focus:** if the input is "on", it turns Do Not Disturb on; otherwise it turns it off.
-- **Before running:** Relay checks `shortcuts list` (cached after the first successful check). If the
-  shortcut is missing, it throws `.shortcutMissing(name)`.
-- **Authoring:** the files are generated and signed during implementation, then verified by running them.
-  Fallback if generating them proves unreliable: a 3-step guide (`docs/shortcuts-setup.md`) for building
-  them in the Shortcuts app, and the panel links to that guide instead of offering Add Shortcut.
+Three shortcuts, each a single action, so they're quick to build by hand:
+
+| Shortcut | Action | Input |
+|---|---|---|
+| Relay Brightness | Set Brightness, with its value set to Shortcut Input | a fraction 0…1, e.g. `0.70` |
+| Relay Focus On | Set Focus: turn Do Not Disturb on | none |
+| Relay Focus Off | Set Focus: turn Do Not Disturb off | none |
+
+- **Setup is guided (primary path).** `shortcuts sign` failed during planning with a server error
+  (NSURLErrorDomain 500, 2026-09-28), so Relay can't depend on generating signed files. When a shortcut is
+  missing, the panel shows the exact steps for building it, plus an **Open Shortcuts** button. The same
+  steps are in `docs/shortcuts-setup.md`.
+- **Optional one-click path.** If signed files exist in `Resources/Shortcuts/<name>.shortcut` (for example,
+  exported from the Shortcuts app), `scripts/make-app.sh` copies them into
+  `Relay.app/Contents/Resources/Shortcuts/`. The panel then offers **Add Shortcut**, which opens the file in
+  Shortcuts' import dialog.
+- **Before running:** Relay checks `shortcuts list`. The installed names are cached after a successful check,
+  and a missing name is re-checked every time. If the shortcut is missing, Relay throws
+  `.shortcutMissing(name)`. If it's present but exits with an error, Relay throws `.shortcutFailed(name, reason)`.
 
 ### 4.2 Errors
 
@@ -239,7 +248,7 @@ How each is detected:
 | Error | Result type | Message | Panel |
 |---|---|---|---|
 | `noVolumeControl` | problem | "This audio device doesn't allow volume control." | — |
-| `shortcutMissing(n)` | info | "<Brightness/Focus> needs a one-time setup." | opens with **Add Shortcut** |
+| `shortcutMissing(n)` | info | "Brightness needs a one-time setup." or "Do Not Disturb needs a one-time setup." | opens with the setup steps (§4.1) |
 | `shortcutFailed(n, r)` | problem | "The <n> shortcut failed: <r>" | — |
 | `automationDenied` | problem | "Relay needs permission to control System Events for dark mode." | opens with **Open System Settings** (Automation) |
 | `accessibilityDenied` | problem | "Relay needs Accessibility access to press keys for you." | opens with **Open System Settings** (Accessibility) |
@@ -253,8 +262,8 @@ How each is detected:
 **UI (`RelayApp`):**
 - **HUD:** when `resultLevel` is set, the result pill shows a small capsule level bar next to the message.
   It fills to the level with a spring animation, like macOS's own volume overlay.
-- **Panel:** when `missingShortcut` is set, the panel shows **Add Shortcut**, which opens the bundled
-  `.shortcut` file.
+- **Panel:** when `missingShortcut` is set, the panel shows the setup steps for that shortcut and **Open
+  Shortcuts**, or **Add Shortcut** if a signed file is bundled (§4.1).
 - **Auto-open:** the panel opens by itself when `missingShortcut` is set. This is in addition to the v1
   triggers: a Claude job, `missingPermission` and `prepareFailed`.
 - **`Info.plist`** gains `NSAppleEventsUsageDescription`: "Relay controls System Events to switch dark
@@ -272,7 +281,7 @@ How each is detected:
 - **`LevelParserTests` / `SwitchParserTests`:** tables covering digits, "%", spoken numbers, half, max,
   min, "a bit", mute/unmute priority, light-mode inversion, and toggle.
 - **`ShortcutsBridgeTests`:** a fake command runner checks argument building, the input temp file
-  contents, the cached `shortcuts list` check, `.shortcutMissing`, and a non-zero exit becoming
+  contents (`0.70` for 70%), the cached `shortcuts list` check, `.shortcutMissing`, and a non-zero exit becoming
   `.shortcutFailed`.
 - **`AssistantCoreTests`:** a fake `SystemControlling` records calls. For each of the nine intents, the
   tests check the call and its values, the message, the result type and `resultLevel`. They also cover
@@ -288,7 +297,7 @@ How each is detected:
   - lock locks
   - media keys control Music and a YouTube tab
   - a screenshot lands in the screenshot folder, after the Screen Recording prompt
-  - Add Shortcut imports the shortcut
+  - the panel's setup steps are enough to build each shortcut, and the command works right after
   - Relay asks for each permission once, and the action works after it's granted
 
 ## 7. Out of scope for A
