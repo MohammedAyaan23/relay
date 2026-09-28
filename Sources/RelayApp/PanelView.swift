@@ -2,6 +2,7 @@ import Actions
 import AssistantCore
 import Routing
 import SwiftUI
+import SystemControls
 
 struct PanelView: View {
     let assistant: Assistant
@@ -30,6 +31,11 @@ struct PanelView: View {
             if let shortcut = assistant.missingShortcut {
                 ShortcutSetupView(name: shortcut, isBundled: controller.bundledShortcut(named: shortcut) != nil) {
                     controller.setUpShortcut(named: shortcut)
+                }
+            }
+            if !assistant.fileMatches.isEmpty {
+                FileMatchesView(matches: assistant.fileMatches) { match in
+                    Task { await assistant.pick(match) }
                 }
             }
             if let transcript = assistant.transcript, !transcript.isEmpty {
@@ -156,5 +162,39 @@ struct ShortcutSetupView: View {
         }
         .padding(10)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// The "Pick a file" list shown when a find/open/reveal request matched several files.
+struct FileMatchesView: View {
+    let matches: [FileMatch]
+    let pick: (FileMatch) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Pick a file").font(.headline)
+            ForEach(matches, id: \.self) { match in
+                Button { pick(match) } label: {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(match.name)
+                        Text(Self.shortPath(match.url.deletingLastPathComponent()))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(10)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// "/Users/me/Documents/Taxes" → "~/Documents/Taxes".
+    static func shortPath(_ folder: URL) -> String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let path = folder.path
+        return path.hasPrefix(home) ? "~" + path.dropFirst(home.count) : path
     }
 }

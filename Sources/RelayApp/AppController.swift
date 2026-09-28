@@ -63,11 +63,13 @@ final class AppController {
             _ = assistant.missingPermission
             _ = assistant.prepareFailed
             _ = assistant.missingShortcut
+            _ = assistant.fileMatches
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
                 if self.assistant.claudeRunning || self.assistant.missingPermission != nil || self.assistant.prepareFailed
-                    || self.assistant.missingShortcut != nil {
+                    || self.assistant.missingShortcut != nil
+                    || !self.assistant.fileMatches.isEmpty {
                     self.panel.show()
                 }
                 self.watchForPanelWorthyChanges()

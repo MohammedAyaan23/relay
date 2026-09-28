@@ -39,4 +39,16 @@ microphone/speech permission again after rebuilding.
 - [ ] "Open sound settings" / "open lock screen settings" do NOT change volume or lock the Mac; "show my notifications" does NOT turn on Do Not Disturb
 - [ ] After rebuilding Relay, if lock/media/brightness keys stop working: remove and re-add Relay under Privacy & Security → Accessibility (each build has a new ad-hoc signature)
 - [ ] "Tell Claude to mute the tests" goes to Claude, and "search for sound effects" opens a web search
+- [ ] With TextEdit open and unsaved: "quit TextEdit" shows TextEdit's save prompt (nothing is lost)
+- [ ] "Hide this app" hides the app in front; "quit Slack" when Slack isn't running says so and lists running apps
+- [ ] "Minimize this window" / "make this full screen" / "close the tab" act on the app in front (Safari tab closes)
+- [ ] "Make a new folder called invoices": appears on the Desktop; saying it again creates "invoices 2"
+- [ ] With a Finder window in front: "make a new folder called drafts" asks for Finder control once, then creates it in that window's folder
+- [ ] "Create a text file called todo in documents" creates ~/Documents/todo.txt
+- [ ] "Open the <name of a file you have>" with one match opens it; with several, the panel lists them and clicking one opens it
+- [ ] "Find my <file>" reveals it in Finder; "show the downloads folder in finder" opens Downloads
+- [ ] "Screenshot this window" captures only the front window (no pill in the image)
+- [ ] "Screenshot an area": drag a region → saved; try again and press Esc → "Screenshot cancelled"
+- [ ] "Copy a screenshot", then paste into Notes: the image appears
+- [ ] "Take a screenshot and show it" opens the new screenshot in Preview
 - [ ] `~/Library/Application Support/Relay/decisions.jsonl` has one line per command

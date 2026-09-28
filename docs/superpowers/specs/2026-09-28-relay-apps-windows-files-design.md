@@ -247,7 +247,7 @@ Existing cases are reused for permissions: `.accessibilityDenied` and `.screenRe
 | Screenshot copied | "Screenshot copied to clipboard" (plus "Window " / "Area " prefixes) | success |
 | Screenshot cancelled | "Screenshot cancelled" | info |
 | `.appNotRunning(n)` | "<n> isn't running." (plus " Running: A, B, C." when the name didn't match) | problem |
-| `.noFrontWindow` | "There's no app window in front to <minimize / make full screen / close / quit / hide / capture>." | problem |
+| `.noFrontWindow` | "There's no app window in front to <minimize / make full screen / close / quit / hide / take a screenshot>." | problem |
 | `.searchFailed(r)` | "Couldn't search your files: <r>" | problem |
 | Create failed | "Couldn't create “<name>”: <reason>" | problem |
 
