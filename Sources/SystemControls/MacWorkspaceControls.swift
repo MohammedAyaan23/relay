@@ -61,27 +61,26 @@ public final class MacWorkspaceControls: WorkspaceControlling {
     public func sendWindowShortcut(_ shortcut: WindowShortcut) async throws {
         try Permissions.requireAccessibility()
         try await MainActor.run {
-            guard Self.frontmostApp() != nil else { throw SystemControlError.noFrontWindow }
+            guard let front = Self.frontmostApp() else { throw SystemControlError.noFrontWindow }
+            // If Relay's panel took keyboard focus (e.g. after clicking a file in it), hand focus back to
+            // the app in front so the shortcut reaches it rather than Relay.
+            if NSApp.keyWindow != nil { _ = front.activate() }
             KeyEvents.press(shortcut)
         }
     }
 
     // MARK: Files
 
+    /// Runs through `osascript` (off the main thread, 15 s timeout) so a slow Finder or the first-time
+    /// Automation prompt can't freeze Relay.
     public func frontFinderFolder() async throws -> URL? {
-        try await MainActor.run {
-            guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.finder" else { return nil }
-            let source = "tell application \"Finder\" to if (count of Finder windows) > 0 then "
-                + "POSIX path of (target of front Finder window as alias)"
-            var error: NSDictionary?
-            let result = NSAppleScript(source: source)?.executeAndReturnError(&error)
-            if let error {
-                if error[NSAppleScript.errorNumber] as? Int == -1743 { throw SystemControlError.automationDenied }
-                return nil
-            }
-            guard let path = result?.stringValue, !path.isEmpty else { return nil }
-            return URL(fileURLWithPath: path, isDirectory: true)
+        let finderInFront = await MainActor.run {
+            NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.finder"
         }
+        guard finderInFront,
+              let result = try? await runner.run("/usr/bin/osascript", ["-e", FinderFolderScript.source])
+        else { return nil }
+        return try FinderFolderScript.interpret(result)
     }
 
     public func createFolder(named name: String, in folder: URL) async throws -> URL {
@@ -123,7 +122,7 @@ public final class MacWorkspaceControls: WorkspaceControlling {
             let reason = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             throw SystemControlError.searchFailed(reason.isEmpty ? "mdfind exited \(result.status)" : reason)
         }
-        let paths = result.stdout.split(separator: "\n").prefix(FileSearch.pathLimit).map(String.init)
+        let paths = result.stdout.split(separator: "\n").map(String.init) // FileSearch caps after filtering
         return FileSearch.rank(paths: paths, query: query, home: home) { url in
             try? url.resourceValues(forKeys: [.contentAccessDateKey]).contentAccessDate
         }
@@ -158,11 +157,9 @@ public final class MacWorkspaceControls: WorkspaceControlling {
 
         let arguments = ScreenshotCommand.arguments(for: options, file: file, windowID: windowID)
         let result = try await (options.target == .area ? areaRunner : runner).run("/usr/sbin/screencapture", arguments)
-        guard result.status == 0 else {
-            let reason = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            throw SystemControlError.failed(reason.isEmpty ? "screencapture exited \(result.status)" : reason)
-        }
-        guard let file else { return .copied }
-        return FileManager.default.fileExists(atPath: file.path) ? .saved(file) : .cancelled
+        return try ScreenshotCommand.interpret(
+            status: result.status, stderr: result.stderr, file: file,
+            fileExists: file.map { FileManager.default.fileExists(atPath: $0.path) } ?? false,
+            target: options.target)
     }
 }

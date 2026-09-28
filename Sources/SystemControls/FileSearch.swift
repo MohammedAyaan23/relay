@@ -9,11 +9,15 @@ public enum FileSearch {
     public static func rank(paths: [String], query: String, home: URL, lastUsed: (URL) -> Date?) -> [FileMatch] {
         let q = query.lowercased()
         let library = home.appendingPathComponent("Library").path + "/"
-        let scored = paths.prefix(pathLimit).compactMap { path -> (match: FileMatch, tier: Int)? in
-            guard !path.hasPrefix(library),
-                  !path.split(separator: "/").contains(where: { $0.hasPrefix(".") }),
-                  !path.contains(".app/")
-            else { return nil }
+        // iCloud Drive and Dropbox/Google Drive/OneDrive live under ~/Library but are the user's files.
+        let cloudFolders = [home.appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs").path + "/",
+                            home.appendingPathComponent("Library/CloudStorage").path + "/"]
+        let usable = Array(paths.lazy.filter { path in
+            (!path.hasPrefix(library) || cloudFolders.contains(where: path.hasPrefix))
+                && !path.split(separator: "/").contains(where: { $0.hasPrefix(".") })
+                && !path.contains(".app/")
+        }.prefix(pathLimit))
+        let scored = usable.compactMap { path -> (match: FileMatch, tier: Int)? in
             let url = URL(fileURLWithPath: path)
             let name = url.lastPathComponent
             let stem = url.deletingPathExtension().lastPathComponent.lowercased()

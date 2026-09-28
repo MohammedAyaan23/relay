@@ -191,10 +191,12 @@ struct FileMatchesView: View {
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
     }
 
-    /// "/Users/me/Documents/Taxes" → "~/Documents/Taxes".
+    /// "/Users/me/Documents/Taxes" → "~/Documents/Taxes"; iCloud Drive paths read "iCloud Drive/…".
     static func shortPath(_ folder: URL) -> String {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let iCloud = home + "/Library/Mobile Documents/com~apple~CloudDocs"
         let path = folder.path
+        if path.hasPrefix(iCloud) { return "iCloud Drive" + path.dropFirst(iCloud.count) }
         return path.hasPrefix(home) ? "~" + path.dropFirst(home.count) : path
     }
 }

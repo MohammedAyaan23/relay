@@ -79,3 +79,43 @@ func screenshotArguments(_ options: ScreenshotOptions, _ expected: [String]) {
     #expect(WindowList.frontWindowID(pid: 9, windows: windows) == nil)
     #expect(WindowList.frontWindowID(pid: 5, windows: windows) == nil)
 }
+
+// MARK: Final-review findings
+
+@Test func searchIncludesICloudDriveAndCloudStorage() {
+    let paths = ["/Users/test/Library/Mobile Documents/com~apple~CloudDocs/8th sem grade card.pdf",
+                 "/Users/test/Library/CloudStorage/Dropbox/grade card scan.png",
+                 "/Users/test/Library/Caches/grade card.tmp"]
+    let ranked = FileSearch.rank(paths: paths, query: "grade card", home: home) { _ in nil }
+    #expect(Set(ranked.map(\.name)) == ["8th sem grade card.pdf", "grade card scan.png"])
+}
+
+@Test func pathCapAppliesAfterFiltering() {
+    let libraryNoise = (1...400).map { "/Users/test/Library/Caches/doc \($0).tmp" }
+    let ranked = FileSearch.rank(paths: libraryNoise + ["/Users/test/Documents/doc.txt"], query: "doc", home: home) { _ in nil }
+    #expect(ranked.map(\.name) == ["doc.txt"])
+}
+
+private let areaShot = ScreenshotOptions.Target.area
+
+@Test func screenshotResultsAreInterpreted() throws {
+    let file = URL(fileURLWithPath: "/Users/test/Desktop/Screenshot.png")
+    #expect(try ScreenshotCommand.interpret(status: 0, stderr: "", file: file, fileExists: true, target: .screen) == .saved(file))
+    #expect(try ScreenshotCommand.interpret(status: 0, stderr: "", file: file, fileExists: false, target: .area) == .cancelled)
+    #expect(try ScreenshotCommand.interpret(status: 1, stderr: "", file: file, fileExists: false, target: areaShot) == .cancelled)
+    #expect(try ScreenshotCommand.interpret(status: 0, stderr: "", file: nil, fileExists: false, target: .window) == .copied)
+    #expect(throws: SystemControlError.failed("screencapture exited 1")) {
+        _ = try ScreenshotCommand.interpret(status: 1, stderr: "", file: file, fileExists: false, target: .screen)
+    }
+}
+
+@Test func finderFolderScriptResultsAreInterpreted() throws {
+    let ok = CommandResult(status: 0, stdout: "/Users/test/Projects/\n", stderr: "")
+    #expect(try FinderFolderScript.interpret(ok)?.path == "/Users/test/Projects")
+    #expect(try FinderFolderScript.interpret(CommandResult(status: 0, stdout: "missing value\n", stderr: "")) == nil)
+    #expect(try FinderFolderScript.interpret(CommandResult(status: 0, stdout: "", stderr: "")) == nil)
+    #expect(try FinderFolderScript.interpret(CommandResult(status: 1, stdout: "", stderr: "execution error: Finder got an error (-1712)")) == nil)
+    #expect(throws: SystemControlError.automationDenied) {
+        _ = try FinderFolderScript.interpret(CommandResult(status: 1, stdout: "", stderr: "Not authorized to send Apple events to Finder. (-1743)"))
+    }
+}

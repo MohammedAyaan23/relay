@@ -6,7 +6,9 @@ public enum AppTarget: Equatable, Sendable {
 /// Which app a quit/hide command means: a spoken name, or the app in front ("this app", nothing).
 public enum AppTargetParser {
     static let dropWords: Set<String> = ["quit", "exit", "close", "hide", "completely", "the", "app",
-                                         "application", "please", "down", "out", "of"]
+                                         "application", "please", "down", "out", "of", "minimize", "minimise",
+                                         "full", "screen", "fullscreen", "window", "tab", "make", "go", "into",
+                                         "mode", "enter", "current", "front", "active", "that", "my"]
 
     public static func parse(_ transcript: String) -> AppTarget {
         let words = TextNormalizer.normalize(transcript).split(separator: " ").map(String.init)

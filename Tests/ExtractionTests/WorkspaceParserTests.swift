@@ -58,3 +58,14 @@ func searchQueries(_ transcript: String, _ expected: String) {
 func screenshotOptions(_ transcript: String, _ expected: ScreenshotOptions) {
     #expect(ScreenshotOptionsParser.parse(transcript) == expected)
 }
+
+@Test(arguments: [
+    ("minimise safari", AppTarget.named("safari")),
+    ("close the safari window", .named("safari")),
+    ("make this full screen", .frontmost),
+    ("close the tab", .frontmost),
+    ("quit the current app", .frontmost),
+])
+func windowCommandTargets(_ transcript: String, _ expected: AppTarget) {
+    #expect(AppTargetParser.parse(transcript) == expected)
+}

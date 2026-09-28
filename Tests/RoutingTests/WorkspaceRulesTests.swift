@@ -54,3 +54,36 @@ func heldOutWorkspacePhrasesMatch(_ transcript: String, _ expected: RoutedIntent
 func appAndWebRequestsStayWithLaya(_ transcript: String) {
     #expect(CommandRules.match(transcript) == nil)
 }
+
+// MARK: Final-review findings
+
+@Test(arguments: [
+    "how close is the moon, look it up",
+    "i'm close to finishing this",
+    "how do i minimize risk in my portfolio",
+    "how do i make a youtube video full screen",
+    "where is taiwan",
+    "where's my phone",
+    "where is the nearest coffee shop",
+    "make a presentation about dogs",
+    "can you help me make a report",
+])
+func everydaySentencesDoNotTriggerWorkspaceActions(_ transcript: String) {
+    #expect(CommandRules.match(transcript) == nil)
+}
+
+@Test(arguments: [
+    ("open the new folder", RoutedIntent.openFile),
+    ("open my new presentation", .openFile),
+    ("find my new contract", .findFile),
+    ("open notes.md", .openFile),
+    ("find notes dot md", .findFile),
+    ("where did i put my passport scan", .findFile),
+    ("can you close the tab", .closeWindow),
+    ("please make a new folder called drafts", .createFolder),
+    ("could you minimize this window", .minimizeWindow),
+    ("close the safari window", .closeWindow),
+])
+func reviewedWorkspacePhrasesRouteCorrectly(_ transcript: String, _ expected: RoutedIntent) {
+    #expect(CommandRules.match(transcript) == expected)
+}

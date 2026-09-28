@@ -235,3 +235,31 @@ private func match(_ name: String) -> FileMatch {
     await n.speak()
     #expect(n.assistant.message == "There's no app window in front to take a screenshot.")
 }
+
+// MARK: Final-review findings
+
+@MainActor @Test func openingANamedPlaceOpensThatFolder() async {
+    let o = Harness(transcript: "open the downloads folder", outcome: .intent(.openFile))
+    await o.speak()
+    #expect(await o.workspace.calls == ["open(Downloads)"])
+    #expect(o.assistant.message == "Opened Downloads")
+
+    let f = Harness(transcript: "find my documents folder", outcome: .intent(.findFile))
+    await f.speak()
+    #expect(await f.workspace.calls == ["reveal(Documents)"])
+    #expect(f.assistant.message == "Showed Documents in Finder")
+}
+
+@MainActor @Test func windowCommandsForAnAppThatIsNotInFront() async {
+    let h = Harness(transcript: "close the safari window", outcome: .intent(.closeWindow))
+    await h.workspace.setFrontmost("Terminal")
+    await h.speak()
+    #expect(await h.workspace.calls.isEmpty)
+    #expect(h.assistant.message == "Safari isn't in front.")
+    #expect(h.assistant.resultKind == .problem)
+
+    let m = Harness(transcript: "minimise safari", outcome: .intent(.minimizeWindow))
+    await m.speak()
+    #expect(await m.workspace.calls == ["shortcut(minimize)"])
+    #expect(m.assistant.message == "Minimized Safari")
+}

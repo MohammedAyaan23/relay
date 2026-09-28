@@ -51,4 +51,9 @@ microphone/speech permission again after rebuilding.
 - [ ] "Screenshot an area": drag a region → saved; try again and press Esc → "Screenshot cancelled"
 - [ ] "Copy a screenshot", then paste into Notes: the image appears
 - [ ] "Take a screenshot and show it" opens the new screenshot in Preview
+- [ ] "Find my <file that lives in iCloud Drive>" finds it; the panel shows its folder as "iCloud Drive/…"
+- [ ] Click a file in the panel's list, then say "close this window": the app in front closes its window (not Relay's panel)
+- [ ] "Screenshot an area", press Esc: the pill says "Screenshot cancelled" (not an error)
+- [ ] First "make a new folder called x" with Finder in front: the pill keeps animating while the Finder permission prompt is up
+- [ ] "How close is the moon" / "where is Taiwan" do NOT close a window or search files; "close the Safari window" while another app is in front says "Safari isn't in front."
 - [ ] `~/Library/Application Support/Relay/decisions.jsonl` has one line per command

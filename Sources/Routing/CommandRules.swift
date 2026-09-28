@@ -24,6 +24,11 @@ public enum CommandRules {
                             "report", "agreement", "contract", "invoice", "folder", "directory"]
     static let fileWordsExceptFolders = fileWords.filter { $0 != "folder" && $0 != "directory" }
     static let windowWords = ["window", "tab", "this", "it"]
+    /// "close" only counts as a window command right before what's being closed ("close the tab").
+    static let closeTargets = ["close the", "close this", "close that", "close my", "close it", "close window",
+                               "close tab", "close all"]
+    /// Polite openers are dropped so start-of-command rules still apply ("can you close the tab").
+    static let courtesy = ["can you", "could you", "would you", "will you", "please", "hey relay", "relay", "ok", "okay"]
 
     static let rules: [Rule] = [
         Rule(intent: .screenshot, anyOf: ["screenshot", "screen shot", "screen capture", "capture the screen"]),
@@ -31,14 +36,16 @@ public enum CommandRules {
              noneOf: ["playing", "music", "full screen"]),
         Rule(intent: .quitApp, anyOf: ["close"], alsoAnyOf: ["completely"]),
         Rule(intent: .hideApp, anyOf: ["hide"], startsWith: ["hide"]),
-        Rule(intent: .minimizeWindow, anyOf: ["minimize", "minimise"]),
-        Rule(intent: .fullScreen, anyOf: ["full screen", "fullscreen"]),
-        Rule(intent: .closeWindow, anyOf: ["close"], alsoAnyOf: windowWords, noneOf: ["completely"]),
+        Rule(intent: .minimizeWindow, anyOf: ["minimize", "minimise"], noneOf: questionWords),
+        Rule(intent: .fullScreen, anyOf: ["full screen", "fullscreen"], noneOf: questionWords),
+        Rule(intent: .closeWindow, anyOf: closeTargets, alsoAnyOf: windowWords, noneOf: ["completely"] + questionWords),
         Rule(intent: .quitApp, anyOf: ["close"], startsWith: ["close"], noneOf: windowWords),
-        Rule(intent: .createFolder, anyOf: ["folder", "directory"], alsoAnyOf: ["create", "make", "new", "add"]),
-        Rule(intent: .createFile, anyOf: fileWordsExceptFolders, alsoAnyOf: ["create", "make", "new"]),
+        Rule(intent: .createFolder, anyOf: ["folder", "directory"], startsWith: ["create", "make", "new", "add"]),
+        Rule(intent: .createFile, anyOf: fileWordsExceptFolders, alsoAnyOf: ["called", "named", "new", "empty", "blank"],
+             startsWith: ["create", "make", "new"]),
         Rule(intent: .revealFile, anyOf: ["finder", "reveal"]),
-        Rule(intent: .findFile, anyOf: ["where is", "where did", "where s", "locate"]),
+        Rule(intent: .findFile, anyOf: ["where is", "where s", "locate"], alsoAnyOf: fileWords),
+        Rule(intent: .findFile, anyOf: ["where did"], alsoAnyOf: ["put", "save", "saved", "leave", "keep"]),
         Rule(intent: .findFile, anyOf: ["find"], alsoAnyOf: fileWords),
         Rule(intent: .openFile, anyOf: ["open"], alsoAnyOf: fileWords, startsWith: ["open"]),
         Rule(intent: .lock, anyOf: ["lock"], noneOf: ["settings", "pick"]),
@@ -59,8 +66,21 @@ public enum CommandRules {
     ]
 
     public static func match(_ transcript: String) -> RoutedIntent? {
-        let words = transcript.lowercased().split { !$0.isLetter && !$0.isNumber }.joined(separator: " ")
-        let padded = " \(words) "
+        var words = transcript.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
+        var droppedCourtesy = true
+        while droppedCourtesy {
+            droppedCourtesy = false
+            for phrase in courtesy {
+                let parts = phrase.split(separator: " ").map(String.init)
+                if words.starts(with: parts) {
+                    words.removeFirst(parts.count)
+                    droppedCourtesy = true
+                }
+            }
+        }
+        var padded = " \(words.joined(separator: " ")) "
+        // A spoken or typed file name ("notes dot md", "notes.md") counts as naming a file.
+        if transcript.lowercased().contains(/[a-z0-9]\.[a-z0-9]/) || padded.contains(" dot ") { padded += "file " }
         func has(_ phrase: String) -> Bool { padded.contains(" \(phrase) ") }
         func starts(_ phrase: String) -> Bool { padded.hasPrefix(" \(phrase) ") }
 

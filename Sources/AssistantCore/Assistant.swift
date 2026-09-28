@@ -409,7 +409,15 @@ public final class Assistant {
             let shortcut: WindowShortcut = intent == .minimizeWindow ? .minimize : intent == .fullScreen ? .fullScreen : .close
             let verb = intent == .minimizeWindow ? "minimize" : intent == .fullScreen ? "make full screen" : "close"
             return await control(verb) {
-                let app = await self.deps.workspace.frontmostAppName() ?? "the window"
+                let front = await self.deps.workspace.frontmostAppName()
+                // "close the Safari window" must not close whatever else happens to be in front.
+                if case .named(let spoken) = AppTargetParser.parse(text) {
+                    let frontApp = front.map { [InstalledApp(name: $0, url: URL(fileURLWithPath: "/"))] } ?? []
+                    guard case .found(_) = AppMatcher(apps: frontApp).match(spoken) else {
+                        return Outcome("\(spoken.capitalized) isn't in front.", .problem)
+                    }
+                }
+                let app = front ?? "the window"
                 try await self.deps.workspace.sendWindowShortcut(shortcut)
                 let message = switch shortcut {
                 case .minimize: "Minimized \(app)"
@@ -439,10 +447,17 @@ public final class Assistant {
 
         case .openFile, .findFile, .revealFile:
             guard let query = FileRequestParser.query(text) else { return Outcome("Which file?", .info) }
-            if intent == .revealFile, let place = FileLocation(rawValue: query) {
-                return await control("show \(Self.folderName(place))") {
+            if let place = FileLocation(rawValue: query) {
+                let name = Self.folderName(place)
+                if intent == .openFile {
+                    return await control("open \(name)") {
+                        try await self.deps.workspace.open(Self.url(for: place))
+                        return Outcome("Opened \(name)", .success)
+                    }
+                }
+                return await control("show \(name)") {
                     try await self.deps.workspace.reveal(Self.url(for: place))
-                    return Outcome("Showed \(Self.folderName(place)) in Finder", .success)
+                    return Outcome("Showed \(name) in Finder", .success)
                 }
             }
             let action: FileMatchAction = intent == .openFile ? .open : .reveal

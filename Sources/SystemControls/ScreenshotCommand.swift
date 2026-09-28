@@ -15,6 +15,19 @@ public enum ScreenshotCommand {
         return arguments
     }
 
+    /// What a finished `screencapture` run means. A missing file after success is a cancel; so is a
+    /// failed interactive area pick with no error text (Esc can end it with a non-zero status).
+    public static func interpret(status: Int32, stderr: String, file: URL?, fileExists: Bool,
+                                 target: ScreenshotOptions.Target) throws -> ScreenshotResult {
+        guard status == 0 else {
+            let reason = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            if target == .area, reason.isEmpty, !fileExists { return .cancelled }
+            throw SystemControlError.failed(reason.isEmpty ? "screencapture exited \(status)" : reason)
+        }
+        guard let file else { return .copied }
+        return fileExists ? .saved(file) : .cancelled
+    }
+
     /// Area shots wait for the user to drag, so they get longer than the usual 15 s.
     public static func timeout(for options: ScreenshotOptions) -> Duration {
         options.target == .area ? .seconds(60) : .seconds(15)
