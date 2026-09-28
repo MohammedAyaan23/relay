@@ -22,6 +22,12 @@ public enum RoutedIntent: String, CaseIterable, Sendable, Codable {
     case findFile = "find_file"
     case openFile = "open_file"
     case revealFile = "reveal_file"
+    case typeText = "type_text"
+    case addNote = "add_note"
+    case addReminder = "add_reminder"
+    case startTimer = "start_timer"
+    case timerStatus = "timer_status"
+    case cancelTimer = "cancel_timer"
 
     /// Wording for messages like "Maybe open an app or search the web?".
     public var displayName: String {
@@ -49,6 +55,12 @@ public enum RoutedIntent: String, CaseIterable, Sendable, Codable {
         case .findFile: "find a file"
         case .openFile: "open a file"
         case .revealFile: "show a file in Finder"
+        case .typeText: "type text"
+        case .addNote: "save a note"
+        case .addReminder: "add a reminder"
+        case .startTimer: "start a timer"
+        case .timerStatus: "check a timer"
+        case .cancelTimer: "cancel a timer"
         }
     }
 }

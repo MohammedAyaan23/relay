@@ -475,6 +475,9 @@ public final class Assistant {
                                    .info, extracted: query)
                 }
             }
+
+        case .typeText, .addNote, .addReminder, .startTimer, .timerStatus, .cancelTimer:
+            return Outcome("Relay can't do that yet.", .info)
         }
     }
 

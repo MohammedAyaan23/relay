@@ -55,7 +55,6 @@ func heldOutDevicePhrasesMatch(_ transcript: String, _ expected: RoutedIntent) {
     "my brother is visiting next week",
     "unlock the door",
     "open the music app",
-    "remind me at 8pm to take my medicine",
     "i think it's going to rain",
 ])
 func otherCommandsAreLeftToLaya(_ transcript: String) {

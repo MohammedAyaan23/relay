@@ -49,6 +49,18 @@
     {"text": "show the downloads folder in finder", "expected": "reveal_file"},
     {"text": "screenshot this window", "expected": "screenshot"},
     {"text": "copy a screenshot", "expected": "screenshot"},
-    {"text": "screenshot an area", "expected": "screenshot"}
+    {"text": "screenshot an area", "expected": "screenshot"},
+    {"text": "type see you soon", "expected": "type_text"},
+    {"text": "write thank you so much", "expected": "type_text"},
+    {"text": "type turn the volume down", "expected": "type_text"},
+    {"text": "note that the car needs servicing", "expected": "add_note"},
+    {"text": "take a note buy milk", "expected": "add_note"},
+    {"text": "remind me to call mum at 5pm", "expected": "add_reminder"},
+    {"text": "remind me on friday to submit the report", "expected": "add_reminder"},
+    {"text": "set a pasta timer for 9 minutes", "expected": "start_timer"},
+    {"text": "25 minute pomodoro", "expected": "start_timer"},
+    {"text": "how long is left on the timer", "expected": "timer_status"},
+    {"text": "cancel the pasta timer", "expected": "cancel_timer"},
+    {"text": "stop the timer", "expected": "cancel_timer"}
   ]
 }

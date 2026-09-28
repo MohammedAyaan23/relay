@@ -31,6 +31,15 @@ public enum CommandRules {
     static let courtesy = ["can you", "could you", "would you", "will you", "please", "hey relay", "relay", "ok", "okay"]
 
     static let rules: [Rule] = [
+        // Typing and capture come first: dictated or noted text may contain any command words.
+        Rule(intent: .typeText, anyOf: ["type", "dictate", "write"], startsWith: ["type", "dictate", "write"]),
+        Rule(intent: .addNote, anyOf: ["take a note", "make a note", "note that", "note down", "jot", "add a note",
+                                       "save a note"]),
+        Rule(intent: .addReminder, anyOf: ["remind me", "reminder", "don t let me forget"]),
+        Rule(intent: .cancelTimer, anyOf: ["timer", "timers"], alsoAnyOf: ["cancel", "stop", "delete", "clear", "remove"]),
+        Rule(intent: .timerStatus, anyOf: ["timer", "timers"],
+             alsoAnyOf: ["how long", "how much time", "left", "remaining", "status"]),
+        Rule(intent: .startTimer, anyOf: ["timer", "countdown", "pomodoro"]),
         Rule(intent: .screenshot, anyOf: ["screenshot", "screen shot", "screen capture", "capture the screen"]),
         Rule(intent: .quitApp, anyOf: ["quit", "exit"], startsWith: ["quit", "exit"],
              noneOf: ["playing", "music", "full screen"]),
