@@ -18,6 +18,7 @@ final class PanelController {
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = true
         panel.isReleasedWhenClosed = false
+        panel.sharingType = .none // keep Relay's panel out of voice screenshots
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.contentView = NSHostingView(rootView: PanelView(assistant: assistant, controller: controller))
         panel.center()

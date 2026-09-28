@@ -10,7 +10,8 @@ public enum LevelCommand: Equatable, Sendable {
 
 /// Reads a volume or brightness request: "40 percent", "forty five", "half", "a bit louder", "mute".
 public enum LevelParser {
-    static let upWords = ["up", "louder", "brighter", "raise", "increase", "crank", "turn up", "too dark", "too quiet"]
+    static let upWords = ["up", "louder", "brighter", "raise", "increase", "crank", "turn up", "too dark", "too quiet",
+                          "can t hear", "cannot hear"]
     static let downWords = ["down", "quieter", "dimmer", "dim", "lower", "decrease", "reduce", "turn down",
                             "too loud", "too bright"]
     static let smallStepWords = ["a bit", "a little", "slightly"]
@@ -24,13 +25,20 @@ public enum LevelParser {
 
         if has(["unmute"]) { return .unmute }
         if has(["mute", "silence the sound"]) { return .mute }
-        if let number = number(in: text) { return .set(min(100, max(0, number))) }
+        let goesDown = has(downWords)
+        let goesUp = !goesDown && has(upWords)
+        if let number = number(in: text) {
+            let value = min(100, max(0, number))
+            // "up 10 percent" is a step; "up to 80" or a bare "40 percent" is a level.
+            if (goesUp || goesDown) && !has(["to", "at"]) { return goesUp ? .up(value) : .down(value) }
+            return .set(value)
+        }
         if has(["half"]) { return .set(50) }
         if has(maxWords) { return .set(100) }
         if has(minWords) { return .set(0) }
         let step = has(smallStepWords) ? 6 : 10
-        if has(downWords) { return .down(step) }
-        if has(upWords) { return .up(step) }
+        if goesDown { return .down(step) }
+        if goesUp { return .up(step) }
         return nil
     }
 

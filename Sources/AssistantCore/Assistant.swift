@@ -376,19 +376,25 @@ public final class Assistant {
         let level: Int
         switch command {
         case .mute:
-            try await system.setMuted(true)
-            return Outcome("Muted", .success)
+            do {
+                try await system.setMuted(true)
+                return Outcome("Muted", .success)
+            } catch SystemControlError.noVolumeControl {
+                // Some USB devices have volume but no mute control: silence them instead.
+                try await system.setVolume(0)
+                level = 0
+            }
         case .unmute:
             try await system.setMuted(false)
             resultLevel = Double(try await system.volume()) / 100
             return Outcome("Unmuted", .success)
         case .set(let percent):
             try await system.setVolume(percent)
-            if percent > 0 { try await system.setMuted(false) }
+            if percent > 0 { try await unmuteIfPossible() }
             level = percent
         case .up(let step):
             level = min(100, try await system.volume() + step)
-            try await system.setMuted(false)
+            try await unmuteIfPossible()
             try await system.setVolume(level)
         case .down(let step):
             level = max(0, try await system.volume() - step)
@@ -396,6 +402,13 @@ public final class Assistant {
         }
         resultLevel = Double(level) / 100
         return Outcome("Volume \(level)%", .success)
+    }
+
+    /// Unmutes before raising the volume; devices without a mute control are simply left as they are.
+    private func unmuteIfPossible() async throws {
+        do {
+            try await deps.system.setMuted(false)
+        } catch SystemControlError.noVolumeControl {}
     }
 
     private func changeBrightness(_ command: LevelCommand) async throws -> Outcome {
@@ -436,7 +449,7 @@ public final class Assistant {
                 return Outcome("Relay needs Accessibility access to press keys for you.", .problem)
             case .screenRecordingDenied:
                 missingPermission = .screenRecording
-                return Outcome("Relay needs Screen Recording permission to take screenshots.", .problem)
+                return Outcome("Relay needs Screen Recording permission to take screenshots. Allow it, then quit and reopen Relay.", .problem)
             case .failed(let reason):
                 return Outcome("Couldn't \(action): \(reason)", .problem)
             }

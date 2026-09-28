@@ -6,12 +6,14 @@ import Testing
 actor FakeRunner: CommandRunning {
     var installed: [String]
     var runResult = CommandResult(status: 0, stdout: "", stderr: "")
+    var runError: (any Error)?
     private(set) var calls: [[String]] = []
     private(set) var inputContents: [String] = []
 
     init(installed: [String]) { self.installed = installed }
     func setInstalled(_ names: [String]) { installed = names }
     func setRunResult(_ result: CommandResult) { runResult = result }
+    func setRunError(_ error: (any Error)?) { runError = error }
 
     func run(_ executable: String, _ arguments: [String]) async throws -> CommandResult {
         calls.append([executable] + arguments)
@@ -21,6 +23,7 @@ actor FakeRunner: CommandRunning {
         if let i = arguments.firstIndex(of: "-i") {
             inputContents.append(try String(contentsOfFile: arguments[i + 1], encoding: .utf8))
         }
+        if let runError { throw runError }
         return runResult
     }
 }
@@ -65,6 +68,14 @@ actor FakeRunner: CommandRunning {
     let runner = FakeRunner(installed: ["Relay Brightness"])
     await runner.setRunResult(CommandResult(status: 1, stdout: "", stderr: "Couldn't find shortcut\n"))
     await #expect(throws: SystemControlError.shortcutFailed("Relay Brightness", reason: "Couldn't find shortcut")) {
+        try await ShortcutsBridge(runner: runner).run(ShortcutsBridge.brightness, input: "0.50")
+    }
+}
+
+@Test func stalledShortcutReportsATimeout() async throws {
+    let runner = FakeRunner(installed: ["Relay Brightness"])
+    await runner.setRunError(CommandTimeoutError())
+    await #expect(throws: SystemControlError.shortcutFailed("Relay Brightness", reason: "timed out")) {
         try await ShortcutsBridge(runner: runner).run(ShortcutsBridge.brightness, input: "0.50")
     }
 }

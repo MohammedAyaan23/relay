@@ -6,7 +6,7 @@ public enum SwitchCommand: Equatable, Sendable {
 
 /// Reads on/off requests. `darkMode` and `focusOn` handle words that flip the meaning.
 public enum SwitchParser {
-    static let offWords = ["off", "disable", "stop", "turn off", "deactivate", "end"]
+    static let offWords = ["off", "disable", "stop", "turn off", "deactivate"]
     static let onWords = ["on", "enable", "start", "turn on", "switch to", "activate"]
 
     public static func parse(_ transcript: String) -> SwitchCommand {

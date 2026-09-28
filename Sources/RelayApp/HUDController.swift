@@ -47,6 +47,7 @@ final class HUDController {
         panel.hasShadow = false
         panel.level = .statusBar
         panel.ignoresMouseEvents = true
+        panel.sharingType = .none // keep the pill out of "take a screenshot" and screen recordings
         panel.isReleasedWhenClosed = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         panel.contentView = NSHostingView(rootView: HUDView(assistant: assistant, model: model))

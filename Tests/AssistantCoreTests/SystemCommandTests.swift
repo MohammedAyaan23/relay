@@ -116,7 +116,7 @@ import Testing
     let cases: [(SystemControlError, RoutedIntent, String, PermissionKind)] = [
         (.accessibilityDenied, .lock, "Relay needs Accessibility access to press keys for you.", .accessibility),
         (.automationDenied, .darkMode, "Relay needs permission to control System Events for dark mode.", .automation),
-        (.screenRecordingDenied, .screenshot, "Relay needs Screen Recording permission to take screenshots.", .screenRecording),
+        (.screenRecordingDenied, .screenshot, "Relay needs Screen Recording permission to take screenshots. Allow it, then quit and reopen Relay.", .screenRecording),
     ]
     for (error, intent, message, permission) in cases {
         let h = Harness(transcript: "do it", outcome: .intent(intent))
@@ -159,4 +159,28 @@ import Testing
     #expect(h.assistant.resultLevel == nil)
     await h.assistant.hotkeyPressed()
     #expect(h.assistant.message == "Locking…")
+}
+
+// MARK: Final-review findings
+
+@MainActor @Test func volumeWorksOnDevicesWithoutAMuteControl() async {
+    let h = Harness(transcript: "turn the volume up", outcome: .intent(.volume))
+    await h.system.failMute(with: .noVolumeControl)
+    await h.speak()
+    #expect(await h.system.calls == ["volume()", "setMuted(false)", "setVolume(60)"])
+    #expect(h.assistant.message == "Volume 60%")
+
+    let s = Harness(transcript: "set volume to 40 percent", outcome: .intent(.volume))
+    await s.system.failMute(with: .noVolumeControl)
+    await s.speak()
+    #expect(s.assistant.message == "Volume 40%")
+}
+
+@MainActor @Test func muteFallsBackToZeroVolumeWithoutAMuteControl() async {
+    let h = Harness(transcript: "mute", outcome: .intent(.volume))
+    await h.system.failMute(with: .noVolumeControl)
+    await h.speak()
+    #expect(await h.system.calls == ["setMuted(true)", "setVolume(0)"])
+    #expect(h.assistant.message == "Volume 0%")
+    #expect(h.assistant.resultLevel == 0)
 }

@@ -33,3 +33,7 @@ func darkModeUnderstandsLightMode(_ transcript: String, _ expected: SwitchComman
 func focusUnderstandsNotifications(_ transcript: String, _ expected: Bool) {
     #expect(SwitchParser.focusOn(transcript) == expected)
 }
+
+@Test func endOfTheDayIsNotAnOffSwitch() {
+    #expect(SwitchParser.focusOn("enable do not disturb until the end of the day"))
+}

@@ -102,7 +102,9 @@ actor FakeSystem: SystemControlling {
     private(set) var calls: [String] = []
     var currentVolume = 50
     var failure: SystemControlError?
+    var muteFailure: SystemControlError?
 
+    func failMute(with error: SystemControlError?) { muteFailure = error }
     func setCurrentVolume(_ value: Int) { currentVolume = value }
     func fail(with error: SystemControlError?) { failure = error }
 
@@ -113,7 +115,10 @@ actor FakeSystem: SystemControlling {
 
     func volume() throws -> Int { try record("volume()"); return currentVolume }
     func setVolume(_ percent: Int) throws { try record("setVolume(\(percent))"); currentVolume = percent }
-    func setMuted(_ muted: Bool) throws { try record("setMuted(\(muted))") }
+    func setMuted(_ muted: Bool) throws {
+        try record("setMuted(\(muted))")
+        if let muteFailure { throw muteFailure }
+    }
     func setBrightness(percent: Int) throws { try record("setBrightness(\(percent))") }
     func stepBrightness(up: Bool, presses: Int) throws { try record("stepBrightness(up: \(up), presses: \(presses))") }
     func setFocus(on: Bool) throws { try record("setFocus(\(on))") }

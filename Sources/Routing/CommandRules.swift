@@ -16,17 +16,24 @@ public enum CommandRules {
     static let documentNouns = ["file", "files", "document", "pdf", "spreadsheet", "presentation", "report",
                                 "agreement", "contract", "invoice"]
     static let webLeadIns = ["search", "google", "look up", "find out"]
+    /// "open sound settings", "launch lock screen settings" are app requests, not device commands.
+    static let appLeadIns = ["open", "launch"]
+    static let questionWords = ["what", "when", "who", "why", "how"]
 
     static let rules: [Rule] = [
         Rule(intent: .screenshot, anyOf: ["screenshot", "screen shot", "screen capture", "capture the screen"]),
-        Rule(intent: .lock, anyOf: ["lock"]),
+        Rule(intent: .lock, anyOf: ["lock"], noneOf: ["settings", "pick"]),
         Rule(intent: .darkMode, anyOf: ["dark mode", "light mode", "dark theme", "light theme", "appearance"]),
-        Rule(intent: .focus, anyOf: ["do not disturb", "focus", "notifications", "silence my mac"]),
+        Rule(intent: .focus, anyOf: ["do not disturb", "focus", "notifications", "silence my mac"],
+             noneOf: ["show", "clear", "check", "read", "see"]),
         Rule(intent: .brightness, anyOf: ["brightness", "brighter", "dimmer", "dim", "too bright", "too dark"]),
-        Rule(intent: .volume, anyOf: ["volume", "louder", "quieter", "mute", "unmute", "too loud", "sound"]),
-        Rule(intent: .mediaPrevious, anyOf: ["previous", "last track", "last song", "back a song", "back a track"]),
-        Rule(intent: .mediaNext, anyOf: ["next", "skip"], startsWith: ["next", "skip"]),
-        Rule(intent: .mediaNext, anyOf: ["next", "skip"], alsoAnyOf: ["song", "track", "one"]),
+        Rule(intent: .volume, anyOf: ["volume", "louder", "quieter", "mute", "unmute", "too loud", "too quiet",
+                                      "sound", "can t hear", "cannot hear"]),
+        Rule(intent: .mediaPrevious, anyOf: ["previous", "last track", "last song", "back a song", "back a track"],
+             noneOf: questionWords),
+        Rule(intent: .mediaNext, anyOf: ["next", "skip"], startsWith: ["next", "skip"],
+             noneOf: questionWords + ["week", "month", "year", "time", "day", "weekend"]),
+        Rule(intent: .mediaNext, anyOf: ["next", "skip"], alsoAnyOf: ["song", "track", "one"], noneOf: questionWords),
         Rule(intent: .mediaPlayPause,
              anyOf: ["play", "pause", "resume", "unpause", "stop the music", "stop playing", "stop the song"],
              noneOf: ["open", "launch"] + documentNouns),
@@ -39,7 +46,7 @@ public enum CommandRules {
         func starts(_ phrase: String) -> Bool { padded.hasPrefix(" \(phrase) ") }
 
         // Claude requests and web searches are Laya's, even when they mention device words.
-        if has("claude") || webLeadIns.contains(where: starts) { return nil }
+        if has("claude") || (webLeadIns + appLeadIns).contains(where: starts) { return nil }
 
         return rules.first { rule in
             rule.anyOf.contains(where: has)

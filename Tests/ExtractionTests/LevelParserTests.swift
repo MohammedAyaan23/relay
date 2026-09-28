@@ -42,3 +42,20 @@ func relativeLevels(_ transcript: String, _ expected: LevelCommand) {
     #expect(LevelParser.parse("volume banana") == nil)
     #expect(LevelParser.parse("brightness") == nil)
 }
+
+// MARK: Final-review findings
+
+@Test(arguments: [
+    ("turn the volume up 10 percent", LevelCommand.up(10)),
+    ("brightness up by 20", .up(20)),
+    ("turn it down 5", .down(5)),
+    ("turn the volume up to 80", .set(80)),
+    ("turn it down to 20 percent", .set(20)),
+])
+func numbersWithADirectionAreSteps(_ transcript: String, _ expected: LevelCommand) {
+    #expect(LevelParser.parse(transcript) == expected)
+}
+
+@Test func cantHearMeansLouder() {
+    #expect(LevelParser.parse("i can't hear anything") == .up(10))
+}

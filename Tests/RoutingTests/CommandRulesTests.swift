@@ -65,3 +65,23 @@ func heldOutDevicePhrasesMatch(_ transcript: String, _ expected: RoutedIntent) {
 func otherCommandsAreLeftToLaya(_ transcript: String) {
     #expect(CommandRules.match(transcript) == nil)
 }
+
+// MARK: Final-review findings
+
+@Test(arguments: ["it's too quiet", "i can't hear anything"])
+func tooQuietIsAVolumeCommand(_ transcript: String) {
+    #expect(CommandRules.match(transcript) == .volume)
+}
+
+@Test(arguments: [
+    "show my notifications",
+    "clear my notifications",
+    "open lock screen settings",
+    "how do i pick a lock",
+    "open sound settings",
+    "next week's weather",
+    "what was the previous song called",
+])
+func everydayPhrasesDoNotTriggerDeviceActions(_ transcript: String) {
+    #expect(CommandRules.match(transcript) == nil)
+}

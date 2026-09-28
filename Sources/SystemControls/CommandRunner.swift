@@ -18,11 +18,23 @@ public protocol CommandRunning: Sendable {
     func run(_ executable: String, _ arguments: [String]) async throws -> CommandResult
 }
 
-public struct ProcessRunner: CommandRunning {
+/// A command that ran longer than its runner's timeout and was terminated.
+public struct CommandTimeoutError: Error, LocalizedError, Equatable {
     public init() {}
+    public var errorDescription: String? { "timed out" }
+}
+
+public struct ProcessRunner: CommandRunning {
+    /// Commands still running after this long are terminated, so a stuck tool can't freeze Relay.
+    public let timeout: Duration
+
+    public init(timeout: Duration = .seconds(15)) {
+        self.timeout = timeout
+    }
 
     public func run(_ executable: String, _ arguments: [String]) async throws -> CommandResult {
-        try await withCheckedThrowingContinuation { continuation in
+        let timeout = timeout
+        return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global().async {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: executable)
@@ -38,6 +50,14 @@ public struct ProcessRunner: CommandRunning {
                     continuation.resume(throwing: error)
                     return
                 }
+                let timedOut = OSAllocatedUnfairLock(initialState: false)
+                nonisolated(unsafe) let running = process
+                let seconds = Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18
+                DispatchQueue.global().asyncAfter(deadline: .now() + seconds) {
+                    guard running.isRunning else { return }
+                    timedOut.withLock { $0 = true }
+                    running.terminate()
+                }
                 // Drain stderr on another queue so neither pipe can fill up and block the tool.
                 let errorData = OSAllocatedUnfairLock(initialState: Data())
                 let group = DispatchGroup()
@@ -50,6 +70,10 @@ public struct ProcessRunner: CommandRunning {
                 let outputData = stdout.fileHandleForReading.readDataToEndOfFile()
                 group.wait()
                 process.waitUntilExit()
+                if timedOut.withLock({ $0 }) {
+                    continuation.resume(throwing: CommandTimeoutError())
+                    return
+                }
                 continuation.resume(returning: CommandResult(
                     status: process.terminationStatus,
                     stdout: String(decoding: outputData, as: UTF8.self),

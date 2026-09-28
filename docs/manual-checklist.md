@@ -33,5 +33,10 @@ microphone/speech permission again after rebuilding.
 - [ ] "Pause" / "next song" / "previous track" control Music, and also a playing YouTube tab
 - [ ] "Take a screenshot": Relay asks for Screen Recording once (you may need to reopen Relay); the file appears in your screenshot folder and the pill names the folder
 - [ ] After denying a permission and then allowing it in System Settings, the same spoken command works without relaunching (except Screen Recording, which macOS may require a relaunch for)
+- [ ] Open the screenshot you just took: Relay's pill and panel are NOT in the image
+- [ ] "Turn the volume up 10 percent" raises it by 10 (not to 10%); "turn it up to 80" sets 80%
+- [ ] With a USB headset/DAC as output: "volume up" works; "mute" silences it (falls back to 0% if the device has no mute)
+- [ ] "Open sound settings" / "open lock screen settings" do NOT change volume or lock the Mac; "show my notifications" does NOT turn on Do Not Disturb
+- [ ] After rebuilding Relay, if lock/media/brightness keys stop working: remove and re-add Relay under Privacy & Security → Accessibility (each build has a new ad-hoc signature)
 - [ ] "Tell Claude to mute the tests" goes to Claude, and "search for sound effects" opens a web search
 - [ ] `~/Library/Application Support/Relay/decisions.jsonl` has one line per command
