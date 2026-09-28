@@ -51,12 +51,11 @@ public struct ProcessRunner: CommandRunning {
                     return
                 }
                 let timedOut = OSAllocatedUnfairLock(initialState: false)
-                nonisolated(unsafe) let running = process
                 let seconds = Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18
                 DispatchQueue.global().asyncAfter(deadline: .now() + seconds) {
-                    guard running.isRunning else { return }
+                    guard process.isRunning else { return }
                     timedOut.withLock { $0 = true }
-                    running.terminate()
+                    process.terminate()
                 }
                 // Drain stderr on another queue so neither pipe can fill up and block the tool.
                 let errorData = OSAllocatedUnfairLock(initialState: Data())
