@@ -27,6 +27,11 @@ struct PanelView: View {
             } else if assistant.prepareFailed {
                 Button("Try Again") { controller.retryPrepare() }
             }
+            if let shortcut = assistant.missingShortcut {
+                ShortcutSetupView(name: shortcut, isBundled: controller.bundledShortcut(named: shortcut) != nil) {
+                    controller.setUpShortcut(named: shortcut)
+                }
+            }
             if let transcript = assistant.transcript, !transcript.isEmpty {
                 Label(transcript, systemImage: "quote.bubble").foregroundStyle(.secondary)
             }
@@ -110,5 +115,46 @@ struct ClaudeEventRow: View {
         case .sessionStarted, .ignored:
             EmptyView()
         }
+    }
+}
+
+/// Explains how to create one of Relay's helper shortcuts (one action each).
+struct ShortcutSetupView: View {
+    let name: String
+    let isBundled: Bool
+    let action: () -> Void
+
+    private var steps: [String] {
+        switch name {
+        case "Relay Brightness":
+            ["In Shortcuts, create a new shortcut named “Relay Brightness”.",
+             "Add the “Set Brightness” action.",
+             "Click its brightness value and choose “Shortcut Input”."]
+        case "Relay Focus On":
+            ["In Shortcuts, create a new shortcut named “Relay Focus On”.",
+             "Add the “Set Focus” action and set it to turn Do Not Disturb On.",
+             "Create “Relay Focus Off” the same way, turning Do Not Disturb Off."]
+        default:
+            ["In Shortcuts, create a new shortcut named “\(name)”.",
+             "Add the “Set Focus” action and set it to turn Do Not Disturb Off.",
+             "Create “Relay Focus On” the same way, turning Do Not Disturb On."]
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("One-time setup: \(name)").font(.headline)
+            if isBundled {
+                Text("Click Add Shortcut, then Add in the Shortcuts window.")
+            } else {
+                ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                    Text("\(index + 1). \(step)")
+                }
+                Text("Then say the command again.").foregroundStyle(.secondary)
+            }
+            Button(isBundled ? "Add Shortcut" : "Open Shortcuts", action: action)
+        }
+        .padding(10)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
     }
 }

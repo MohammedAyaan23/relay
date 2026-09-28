@@ -14,6 +14,11 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 cp "$BIN/Relay" "$APP/Contents/MacOS/Relay"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+# Optional signed helper shortcuts (see docs/shortcuts-setup.md).
+if compgen -G "Resources/Shortcuts/*.shortcut" > /dev/null; then
+    mkdir -p "$APP/Contents/Resources/Shortcuts"
+    cp Resources/Shortcuts/*.shortcut "$APP/Contents/Resources/Shortcuts/"
+fi
 codesign --force --sign - "$APP"
 codesign --verify --strict "$APP"
 echo "Built $APP"

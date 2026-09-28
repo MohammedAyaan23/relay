@@ -80,10 +80,15 @@ struct HUDView: View {
             case .preparing:
                 Text(assistant.message ?? "Getting ready…").lineLimit(1)
             case .idle:
-                Text(assistant.message ?? "")
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: 380, alignment: .leading)
+                HStack(spacing: 10) {
+                    Text(assistant.message ?? "")
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 320, alignment: .leading)
+                    if let level = assistant.resultLevel {
+                        LevelBar(level: level)
+                    }
+                }
             }
         }
         .id(labelKey)
@@ -243,5 +248,21 @@ private struct ShimmerText: View {
             .onAppear {
                 withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { offset = 1.0 }
             }
+    }
+}
+
+/// A small capsule that fills to the result level, like macOS's own volume overlay.
+private struct LevelBar: View {
+    let level: Double
+    @State private var shown: Double = 0
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Capsule().fill(.secondary.opacity(0.25))
+            Capsule().fill(.primary).frame(width: 72 * shown)
+        }
+        .frame(width: 72, height: 6)
+        .onAppear { withAnimation(.spring(duration: 0.5, bounce: 0.3)) { shown = level } }
+        .onChange(of: level) { _, new in withAnimation(.spring(duration: 0.5, bounce: 0.3)) { shown = new } }
     }
 }

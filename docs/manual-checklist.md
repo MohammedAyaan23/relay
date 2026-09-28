@@ -23,4 +23,15 @@ microphone/speech permission again after rebuilding.
 - [ ] Goo: after the second press the blobs gather and orbit ("Transcribing…"/"Thinking…"), then collapse into one coloured droplet with the result icon
 - [ ] The pill lands with a squash-and-stretch bounce and drips down when it leaves
 - [ ] System Settings → Accessibility → Display → Reduce motion ON: the goo holds still and the pill only fades in/out
+- [ ] "Set volume to 40 percent": the volume changes; the pill shows "Volume 40%" with the level bar filling to 40%
+- [ ] "Turn the volume up" / "it's too loud" / "mute" / "unmute" each work and show the new level
+- [ ] "Brightness to 70 percent" (first time): the panel shows the Relay Brightness setup steps; after building the shortcut, the command sets 70%
+- [ ] "A bit brighter" / "dim the display": Relay asks for Accessibility once; after allowing, brightness steps up/down
+- [ ] "Switch to dark mode" / "switch to light mode": Relay asks for Automation (System Events) once; appearance switches
+- [ ] "Turn on do not disturb" / "turn off do not disturb": after building the Focus shortcuts, the Focus icon in Control Center changes
+- [ ] "Lock my Mac": the screen locks immediately
+- [ ] "Pause" / "next song" / "previous track" control Music, and also a playing YouTube tab
+- [ ] "Take a screenshot": Relay asks for Screen Recording once (you may need to reopen Relay); the file appears in your screenshot folder and the pill names the folder
+- [ ] After denying a permission and then allowing it in System Settings, the same spoken command works without relaunching (except Screen Recording, which macOS may require a relaunch for)
+- [ ] "Tell Claude to mute the tests" goes to Claude, and "search for sound effects" opens a web search
 - [ ] `~/Library/Application Support/Relay/decisions.jsonl` has one line per command

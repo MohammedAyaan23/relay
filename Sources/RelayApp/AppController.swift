@@ -61,10 +61,12 @@ final class AppController {
             _ = assistant.claudeRunning
             _ = assistant.missingPermission
             _ = assistant.prepareFailed
+            _ = assistant.missingShortcut
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
-                if self.assistant.claudeRunning || self.assistant.missingPermission != nil || self.assistant.prepareFailed {
+                if self.assistant.claudeRunning || self.assistant.missingPermission != nil || self.assistant.prepareFailed
+                    || self.assistant.missingShortcut != nil {
                     self.panel.show()
                 }
                 self.watchForPanelWorthyChanges()
@@ -97,8 +99,28 @@ final class AppController {
     }
 
     func openPrivacySettings(for kind: PermissionKind) {
-        let anchor = kind == .microphone ? "Privacy_Microphone" : "Privacy_SpeechRecognition"
+        let anchor = switch kind {
+        case .microphone: "Privacy_Microphone"
+        case .speechRecognition: "Privacy_SpeechRecognition"
+        case .accessibility: "Privacy_Accessibility"
+        case .screenRecording: "Privacy_ScreenCapture"
+        case .automation: "Privacy_Automation"
+        }
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)")!)
+    }
+
+    /// A signed shortcut file bundled in Relay.app, if one was added to Resources/Shortcuts.
+    func bundledShortcut(named name: String) -> URL? {
+        Bundle.main.url(forResource: name, withExtension: "shortcut", subdirectory: "Shortcuts")
+    }
+
+    /// Opens a bundled shortcut in Shortcuts' import dialog, or the Shortcuts app so the user can build it.
+    func setUpShortcut(named name: String) {
+        if let file = bundledShortcut(named: name) {
+            NSWorkspace.shared.open(file)
+        } else {
+            NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Shortcuts.app"))
+        }
     }
 
     func shutdown() async {
