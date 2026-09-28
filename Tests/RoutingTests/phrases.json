@@ -34,6 +34,21 @@
     {"text": "next song", "expected": "media_next"},
     {"text": "skip this track", "expected": "media_next"},
     {"text": "previous track", "expected": "media_previous"},
-    {"text": "go back to the previous song", "expected": "media_previous"}
+    {"text": "go back to the previous song", "expected": "media_previous"},
+    {"text": "quit slack", "expected": "quit_app"},
+    {"text": "close spotify completely", "expected": "quit_app"},
+    {"text": "hide this app", "expected": "hide_app"},
+    {"text": "minimize this window", "expected": "minimize_window"},
+    {"text": "make this full screen", "expected": "full_screen"},
+    {"text": "close the tab", "expected": "close_window"},
+    {"text": "make a new folder called invoices", "expected": "create_folder"},
+    {"text": "create a text file called todo in documents", "expected": "create_file"},
+    {"text": "open the budget spreadsheet", "expected": "open_file"},
+    {"text": "find my lease agreement", "expected": "find_file"},
+    {"text": "where is the tax document", "expected": "find_file"},
+    {"text": "show the downloads folder in finder", "expected": "reveal_file"},
+    {"text": "screenshot this window", "expected": "screenshot"},
+    {"text": "copy a screenshot", "expected": "screenshot"},
+    {"text": "screenshot an area", "expected": "screenshot"}
   ]
 }

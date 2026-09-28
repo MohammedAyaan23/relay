@@ -368,6 +368,10 @@ public final class Assistant {
                 try await self.deps.system.pressMediaKey(.previous)
                 return Outcome("Previous track", .success)
             }
+
+        case .quitApp, .hideApp, .minimizeWindow, .fullScreen, .closeWindow,
+             .createFolder, .createFile, .findFile, .openFile, .revealFile:
+            return Outcome("Relay can't do that yet.", .info)
         }
     }
 

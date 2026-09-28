@@ -52,13 +52,9 @@ func heldOutDevicePhrasesMatch(_ transcript: String, _ expected: RoutedIntent) {
     "search for sound effects",
     "google how loud is a jet engine",
     "tell claude to mute the tests",
-    "find my resume file",
     "my brother is visiting next week",
     "unlock the door",
     "open the music app",
-    "open the budget spreadsheet",
-    "quit chrome",
-    "go into full screen mode",
     "remind me at 8pm to take my medicine",
     "i think it's going to rain",
 ])

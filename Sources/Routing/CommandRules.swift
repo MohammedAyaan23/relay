@@ -19,9 +19,28 @@ public enum CommandRules {
     /// "open sound settings", "launch lock screen settings" are app requests, not device commands.
     static let appLeadIns = ["open", "launch"]
     static let questionWords = ["what", "when", "who", "why", "how"]
+    /// Words that make a command about files; an "open…" command with one of these is a file request.
+    static let fileWords = ["file", "files", "document", "documents", "doc", "pdf", "spreadsheet", "presentation",
+                            "report", "agreement", "contract", "invoice", "folder", "directory"]
+    static let fileWordsExceptFolders = fileWords.filter { $0 != "folder" && $0 != "directory" }
+    static let windowWords = ["window", "tab", "this", "it"]
 
     static let rules: [Rule] = [
         Rule(intent: .screenshot, anyOf: ["screenshot", "screen shot", "screen capture", "capture the screen"]),
+        Rule(intent: .quitApp, anyOf: ["quit", "exit"], startsWith: ["quit", "exit"],
+             noneOf: ["playing", "music", "full screen"]),
+        Rule(intent: .quitApp, anyOf: ["close"], alsoAnyOf: ["completely"]),
+        Rule(intent: .hideApp, anyOf: ["hide"], startsWith: ["hide"]),
+        Rule(intent: .minimizeWindow, anyOf: ["minimize", "minimise"]),
+        Rule(intent: .fullScreen, anyOf: ["full screen", "fullscreen"]),
+        Rule(intent: .closeWindow, anyOf: ["close"], alsoAnyOf: windowWords, noneOf: ["completely"]),
+        Rule(intent: .quitApp, anyOf: ["close"], startsWith: ["close"], noneOf: windowWords),
+        Rule(intent: .createFolder, anyOf: ["folder", "directory"], alsoAnyOf: ["create", "make", "new", "add"]),
+        Rule(intent: .createFile, anyOf: fileWordsExceptFolders, alsoAnyOf: ["create", "make", "new"]),
+        Rule(intent: .revealFile, anyOf: ["finder", "reveal"]),
+        Rule(intent: .findFile, anyOf: ["where is", "where did", "where s", "locate"]),
+        Rule(intent: .findFile, anyOf: ["find"], alsoAnyOf: fileWords),
+        Rule(intent: .openFile, anyOf: ["open"], alsoAnyOf: fileWords, startsWith: ["open"]),
         Rule(intent: .lock, anyOf: ["lock"], noneOf: ["settings", "pick"]),
         Rule(intent: .darkMode, anyOf: ["dark mode", "light mode", "dark theme", "light theme", "appearance"]),
         Rule(intent: .focus, anyOf: ["do not disturb", "focus", "notifications", "silence my mac"],
@@ -45,8 +64,10 @@ public enum CommandRules {
         func has(_ phrase: String) -> Bool { padded.contains(" \(phrase) ") }
         func starts(_ phrase: String) -> Bool { padded.hasPrefix(" \(phrase) ") }
 
-        // Claude requests and web searches are Laya's, even when they mention device words.
-        if has("claude") || (webLeadIns + appLeadIns).contains(where: starts) { return nil }
+        // Claude requests and web searches are Laya's. "open/launch …" is Laya's unless it names a file word.
+        let namesFile = fileWords.contains(where: has)
+        if has("claude") || webLeadIns.contains(where: starts)
+            || (!namesFile && appLeadIns.contains(where: starts)) { return nil }
 
         return rules.first { rule in
             rule.anyOf.contains(where: has)

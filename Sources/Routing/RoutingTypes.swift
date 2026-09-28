@@ -12,6 +12,16 @@ public enum RoutedIntent: String, CaseIterable, Sendable, Codable {
     case mediaPlayPause = "media_play_pause"
     case mediaNext = "media_next"
     case mediaPrevious = "media_previous"
+    case quitApp = "quit_app"
+    case hideApp = "hide_app"
+    case minimizeWindow = "minimize_window"
+    case fullScreen = "full_screen"
+    case closeWindow = "close_window"
+    case createFolder = "create_folder"
+    case createFile = "create_file"
+    case findFile = "find_file"
+    case openFile = "open_file"
+    case revealFile = "reveal_file"
 
     /// Wording for messages like "Maybe open an app or search the web?".
     public var displayName: String {
@@ -29,6 +39,16 @@ public enum RoutedIntent: String, CaseIterable, Sendable, Codable {
         case .mediaPlayPause: "play or pause"
         case .mediaNext: "skip to the next track"
         case .mediaPrevious: "go to the previous track"
+        case .quitApp: "quit an app"
+        case .hideApp: "hide an app"
+        case .minimizeWindow: "minimize the window"
+        case .fullScreen: "toggle full screen"
+        case .closeWindow: "close the window"
+        case .createFolder: "create a folder"
+        case .createFile: "create a file"
+        case .findFile: "find a file"
+        case .openFile: "open a file"
+        case .revealFile: "show a file in Finder"
         }
     }
 }
