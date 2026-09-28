@@ -14,6 +14,26 @@
     {"text": "new Claude conversation please", "expected": "new_claude_session"},
     {"text": "reset Claude and start fresh", "expected": "new_claude_session"},
     {"text": "i had a great lunch today", "expected": "not_a_command"},
-    {"text": "hmm let me think about that for a second", "expected": "not_a_command"}
+    {"text": "hmm let me think about that for a second", "expected": "not_a_command"},
+    {"text": "turn the volume up", "expected": "volume"},
+    {"text": "set volume to 40 percent", "expected": "volume"},
+    {"text": "it's too loud", "expected": "volume"},
+    {"text": "mute", "expected": "volume"},
+    {"text": "make the screen brighter", "expected": "brightness"},
+    {"text": "brightness to 70 percent", "expected": "brightness"},
+    {"text": "switch to dark mode", "expected": "dark_mode"},
+    {"text": "turn on light mode", "expected": "dark_mode"},
+    {"text": "turn on do not disturb", "expected": "focus"},
+    {"text": "turn off do not disturb", "expected": "focus"},
+    {"text": "lock my mac", "expected": "lock"},
+    {"text": "lock the screen", "expected": "lock"},
+    {"text": "take a screenshot", "expected": "screenshot"},
+    {"text": "grab a screen capture", "expected": "screenshot"},
+    {"text": "pause", "expected": "media_play_pause"},
+    {"text": "play some music", "expected": "media_play_pause"},
+    {"text": "next song", "expected": "media_next"},
+    {"text": "skip this track", "expected": "media_next"},
+    {"text": "previous track", "expected": "media_previous"},
+    {"text": "go back to the previous song", "expected": "media_previous"}
   ]
 }

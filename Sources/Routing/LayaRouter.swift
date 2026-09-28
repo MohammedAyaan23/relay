@@ -40,6 +40,10 @@ public actor LayaRouter: IntentRouting {
             return RoutingDecision(outcome: .intent(.newClaudeSession), gateProbability: 1,
                                    choiceProbabilities: [.newClaudeSession: 1], stateWasTruncated: false)
         }
+        if let intent = CommandRules.match(transcript) {
+            return RoutingDecision(outcome: .intent(intent), gateProbability: 1,
+                                   choiceProbabilities: [intent: 1], stateWasTruncated: false)
+        }
         let gate = try await manager.answer(state: transcript, question: Self.gateQuestion)
         let gateProbability = gate.noul ?? 0
         var probabilities: [RoutedIntent: Float] = [:]
@@ -61,13 +65,14 @@ public actor LayaRouter: IntentRouting {
 }
 
 extension RoutedIntent {
-    /// Option descriptions shown to Laya. Changes must keep or improve `make test-routing`.
+    /// Option descriptions shown to Laya. Only `choiceIntents` are ever offered; the rest come from rules.
     var layaDescription: String {
         switch self {
         case .openApp: "launch or switch to an application on the Mac"
         case .webSearch: "search the internet or look something up in the browser"
         case .askClaude: "send a coding task or question to Claude Code"
         case .newClaudeSession: "start a fresh Claude Code conversation"
+        default: displayName
         }
     }
 }

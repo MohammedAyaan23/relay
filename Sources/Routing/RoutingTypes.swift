@@ -3,6 +3,15 @@ public enum RoutedIntent: String, CaseIterable, Sendable, Codable {
     case webSearch = "web_search"
     case askClaude = "ask_claude"
     case newClaudeSession = "new_claude_session"
+    case volume
+    case brightness
+    case darkMode = "dark_mode"
+    case focus
+    case lock
+    case screenshot
+    case mediaPlayPause = "media_play_pause"
+    case mediaNext = "media_next"
+    case mediaPrevious = "media_previous"
 
     /// Wording for messages like "Maybe open an app or search the web?".
     public var displayName: String {
@@ -11,6 +20,15 @@ public enum RoutedIntent: String, CaseIterable, Sendable, Codable {
         case .webSearch: "search the web"
         case .askClaude: "ask Claude"
         case .newClaudeSession: "start a new Claude session"
+        case .volume: "change the volume"
+        case .brightness: "change the brightness"
+        case .darkMode: "switch dark mode"
+        case .focus: "change Do Not Disturb"
+        case .lock: "lock the screen"
+        case .screenshot: "take a screenshot"
+        case .mediaPlayPause: "play or pause"
+        case .mediaNext: "skip to the next track"
+        case .mediaPrevious: "go to the previous track"
         }
     }
 }

@@ -294,6 +294,9 @@ public final class Assistant {
                 self?.claudeJobEnded()
             }
             return Outcome("Claude is working on it in \(project.lastPathComponent)…", .success, extracted: prompt)
+
+        case .volume, .brightness, .darkMode, .focus, .lock, .screenshot, .mediaPlayPause, .mediaNext, .mediaPrevious:
+            return Outcome("Relay can't do that yet.", .info)
         }
     }
 
