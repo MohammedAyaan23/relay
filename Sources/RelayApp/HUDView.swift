@@ -166,6 +166,7 @@ private struct GooView: View {
 
     @State private var previousMode: GooMode = .idle
     @State private var modeChangedAt: TimeInterval = 0
+    @State private var smoothing = LevelSmoothing()
     private let morphDuration: TimeInterval = 0.45
 
     var body: some View {
@@ -195,7 +196,7 @@ private struct GooView: View {
     }
 
     private func goo(now: TimeInterval) -> some View {
-        let level = level()
+        let level = reduceMotion ? level() : smoothing.advance(toward: level(), at: now)
         let progress = reduceMotion ? 1 : min(1, (now - modeChangedAt) / morphDuration)
         let eased = progress * progress * (3 - 2 * progress) // smoothstep
         return Canvas { context, size in
@@ -215,6 +216,20 @@ private struct GooView: View {
                 }
             }
         }
+    }
+}
+
+/// Keeps the level spring's state across frames. A class, so advancing it while drawing doesn't
+/// trigger a SwiftUI state update.
+@MainActor
+private final class LevelSmoothing {
+    private var spring = LevelSpring()
+    private var lastTime: TimeInterval?
+
+    func advance(toward target: Double, at time: TimeInterval) -> Double {
+        defer { lastTime = time }
+        guard let lastTime else { return spring.step(toward: target, dt: 1.0 / 60) }
+        return spring.step(toward: target, dt: time - lastTime)
     }
 }
 
