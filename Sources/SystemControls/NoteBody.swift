@@ -2,7 +2,9 @@ import Foundation
 
 /// Builds the "Relay" note's HTML body with the newest dated line directly under the title.
 public enum NoteBody {
-    static let title = "<div><h1>Relay</h1></div>"
+    /// Marks the note as Relay's own, so a note the user happens to title "Relay" is never rewritten.
+    public static let marker = "Voice notes from Relay"
+    static let title = "<div><h1>Relay</h1></div><div><i>\(marker)</i></div>"
 
     public static func prepend(entry: String, at date: Date, to body: String?) -> String {
         let formatter = DateFormatter()
@@ -10,10 +12,10 @@ public enum NoteBody {
         formatter.dateFormat = "MMM d, HH:mm"
         let line = "<div>\(formatter.string(from: date)) — \(escape(entry))</div>"
         guard let body, !body.isEmpty else { return title + line }
-        guard let heading = body.range(of: "</h1>") else { return title + line + body }
-        var cut = heading.upperBound
-        if body[cut...].hasPrefix("</div>") { cut = body.index(cut, offsetBy: 6) }
-        return String(body[..<cut]) + line + String(body[cut...])
+        guard let marker = body.range(of: marker),
+              let close = body.range(of: "</div>", range: marker.upperBound..<body.endIndex)
+        else { return title + line + body }
+        return String(body[..<close.upperBound]) + line + String(body[close.upperBound...])
     }
 
     static func escape(_ text: String) -> String {

@@ -20,13 +20,14 @@ public enum TimerTarget: Equatable, Sendable {
 public enum TimerParser {
     static let units: [String: Int] = ["hour": 3600, "hours": 3600, "hr": 3600, "hrs": 3600,
                                        "minute": 60, "minutes": 60, "min": 60, "mins": 60,
-                                       "second": 1, "seconds": 1, "sec": 1, "secs": 1]
+                                       "second": 1, "seconds": 1, "sec": 1, "secs": 1,
+                                       "day": 86_400, "days": 86_400, "week": 604_800, "weeks": 604_800]
     static let nameStopWords: Set<String> = ["a", "an", "the", "my", "set", "start", "new", "for", "me", "timer",
                                              "cancel", "stop", "delete", "clear", "remove", "on", "left", "is",
                                              "how", "long", "much", "time", "all", "every", "of", "and", "half"]
 
     public static func parse(_ transcript: String) -> TimerRequest {
-        let words = TextNormalizer.normalize(transcript).split(separator: " ").map(String.init)
+        let words = tokens(transcript)
         var seconds = 0
         var found = false
         for (i, word) in words.enumerated() {
@@ -35,7 +36,7 @@ public enum TimerParser {
                 seconds += unit / 2
                 found = true
             } else if let amount = amount(before: i, in: words) {
-                seconds += amount * unit
+                seconds += Int((amount * Double(unit)).rounded())
                 found = true
             }
             if i + 3 < words.count, words[i + 1] == "and", words[i + 2] == "a", words[i + 3] == "half" {
@@ -52,23 +53,44 @@ public enum TimerParser {
     }
 
     public static func target(_ transcript: String) -> TimerTarget {
-        let words = TextNormalizer.normalize(transcript).split(separator: " ").map(String.init)
+        let words = tokens(transcript)
         if words.contains("all") || words.contains("every") { return .all }
         if let name = nameBeforeTimer(words) { return .named(name) }
         return .unspecified
     }
 
-    /// Digits, "a"/"an", or a spelled number (hyphenated first: "forty five" parses as 4005 when spaced).
-    static func amount(before index: Int, in words: [String]) -> Int? {
+    /// Lowercased words, keeping decimals ("1.5") and fractions ("1/2") whole.
+    static func tokens(_ transcript: String) -> [String] {
+        transcript.lowercased().matches(of: /\d+\/\d+|\d+(?:\.\d+)?|[a-z]+/).map { String($0.output) }
+    }
+
+    /// The amount before a unit: "1.5", "1 1/2", "2 and a half", "a", or a spelled number
+    /// (hyphenated first: "forty five" parses as 4005 when spaced).
+    static func amount(before index: Int, in words: [String]) -> Double? {
         guard index >= 1 else { return nil }
         let previous = words[index - 1]
-        if let value = Int(previous) { return value }
+        if previous == "half", index >= 4, words[index - 2] == "a", words[index - 3] == "and",
+           let whole = number(words[index - 4]) {
+            return whole + 0.5
+        }
+        if let fraction = fraction(previous) {
+            if index >= 2, let whole = Double(words[index - 2]) { return whole + fraction }
+            return fraction
+        }
+        if let value = Double(previous) { return value }
         if previous == "a" || previous == "an" { return 1 }
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .spellOut
-        formatter.locale = Locale(identifier: "en_US")
-        if index >= 2, let value = formatter.number(from: "\(words[index - 2])-\(previous)")?.intValue { return value }
-        return formatter.number(from: previous)?.intValue
+        if index >= 2, let value = NumberFormatter.spellOutNumber("\(words[index - 2])-\(previous)") { return Double(value) }
+        return NumberFormatter.spellOutNumber(previous).map(Double.init)
+    }
+
+    static func number(_ word: String) -> Double? {
+        Double(word) ?? NumberFormatter.spellOutNumber(word).map(Double.init)
+    }
+
+    static func fraction(_ word: String) -> Double? {
+        let parts = word.split(separator: "/")
+        guard parts.count == 2, let top = Double(parts[0]), let bottom = Double(parts[1]), bottom != 0 else { return nil }
+        return top / bottom
     }
 
     /// The word(s) right before "timer" that aren't filler, numbers or units: "pasta timer" → "pasta".
@@ -78,7 +100,7 @@ public enum TimerParser {
         var i = timerIndex - 1
         while i >= 0 {
             let word = words[i]
-            let isNumber = Int(word) != nil || NumberFormatter.spellOutNumber(word) != nil
+            let isNumber = Double(word) != nil || fraction(word) != nil || NumberFormatter.spellOutNumber(word) != nil
             if nameStopWords.contains(word) || units[word] != nil || isNumber { break }
             nameWords.insert(word, at: 0)
             i -= 1

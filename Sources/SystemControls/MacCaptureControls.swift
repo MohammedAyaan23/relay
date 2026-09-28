@@ -7,6 +7,8 @@ public final class MacCaptureControls: CaptureControlling {
     private let runner: any CommandRunning
     private let timers: TimerStore
     private let scheduler: any NotificationScheduling
+    /// Long enough for busy apps (browsers, Electron, remote desktops) to read the clipboard before it's restored.
+    static let restoreDelay: Duration = .seconds(1)
 
     public init(runner: any CommandRunning = ProcessRunner(),
                 timers: TimerStore = TimerStore(fileURL: TimerStore.defaultFileURL),
@@ -30,7 +32,7 @@ public final class MacCaptureControls: CaptureControlling {
             KeyEvents.pressKey(9 /* kVK_ANSI_V */, flags: .maskCommand)
             return (front.localizedName ?? "the front app", snapshot, changeCount)
         }
-        try? await Task.sleep(for: .milliseconds(300)) // let the app read the clipboard first
+        try? await Task.sleep(for: Self.restoreDelay) // let the app read the clipboard first
         await MainActor.run { _ = PasteboardSwap.restore(snapshot, to: .general, ifChangeCount: changeCount) }
         return app
     }
@@ -38,9 +40,11 @@ public final class MacCaptureControls: CaptureControlling {
     // MARK: Notes
 
     public func addNote(_ text: String) async throws {
-        let body = try NoteScript.interpret(try await runner.run("/usr/bin/osascript", NoteScript.readArguments()))
-        let updated = NoteBody.prepend(entry: text, at: Date(), to: body)
-        _ = try NoteScript.interpret(try await runner.run("/usr/bin/osascript", NoteScript.writeArguments(body: updated)))
+        let listing = try NoteScript.interpret(try await runner.run("/usr/bin/osascript", NoteScript.readArguments()))
+        let note = try NoteScript.relayNote(in: NoteScript.candidates(from: listing))
+        let updated = NoteBody.prepend(entry: text, at: Date(), to: note?.body)
+        _ = try NoteScript.interpret(try await runner.run("/usr/bin/osascript",
+                                                          NoteScript.writeArguments(body: updated, noteID: note?.id)))
     }
 
     // MARK: Reminders

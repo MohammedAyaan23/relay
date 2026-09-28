@@ -4,6 +4,8 @@ import AppKit
 @MainActor
 public enum PasteboardSwap {
     public typealias Snapshot = [[NSPasteboard.PasteboardType: Data]]
+    /// Tells clipboard managers not to record Relay's temporary dictation (nspasteboard.org convention).
+    public static let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
 
     public static func snapshot(of pasteboard: NSPasteboard) -> Snapshot {
         (pasteboard.pasteboardItems ?? []).map { item in
@@ -14,7 +16,10 @@ public enum PasteboardSwap {
     /// Writes `text` and returns the change count to compare against when restoring.
     public static func write(_ text: String, to pasteboard: NSPasteboard) -> Int {
         pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        let item = NSPasteboardItem()
+        item.setString(text, forType: .string)
+        item.setData(Data(), forType: transientType)
+        pasteboard.writeObjects([item])
         return pasteboard.changeCount
     }
 

@@ -35,7 +35,10 @@ public enum CommandRules {
         Rule(intent: .typeText, anyOf: ["type", "dictate", "write"], startsWith: ["type", "dictate", "write"]),
         Rule(intent: .addNote, anyOf: ["take a note", "make a note", "note that", "note down", "jot", "add a note",
                                        "save a note"]),
-        Rule(intent: .addReminder, anyOf: ["remind me", "reminder", "don t let me forget"]),
+        Rule(intent: .addReminder, anyOf: ["remind me", "don t let me forget"]),
+        // "delete my dentist reminder" talks about a reminder; only "set/add/new … reminder" creates one.
+        Rule(intent: .addReminder, anyOf: ["reminder"], alsoAnyOf: ["set", "add", "create", "new", "make"],
+             noneOf: ["delete", "cancel", "remove", "what", "show", "check", "next"]),
         Rule(intent: .cancelTimer, anyOf: ["timer", "timers"], alsoAnyOf: ["cancel", "stop", "delete", "clear", "remove"]),
         Rule(intent: .timerStatus, anyOf: ["timer", "timers"],
              alsoAnyOf: ["how long", "how much time", "left", "remaining", "status"]),

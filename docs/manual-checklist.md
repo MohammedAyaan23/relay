@@ -59,6 +59,9 @@ microphone/speech permission again after rebuilding.
 - [ ] Copy some text, then with TextEdit in front say "type see you soon.": "see you soon." appears; paste again afterwards and your original copied text comes back
 - [ ] "Type" into a browser text field (e.g. a search box) works the same
 - [ ] "Note that the car needs servicing": Relay asks to control Notes once; a note called "Relay" gets a dated line at the top; a second note goes above the first
+- [ ] Make your own note titled "Relay" (with an image in it), then say "note that test": your note is untouched; Relay creates its own "Relay" note with the "Voice notes from Relay" line
+- [ ] Delete Relay's note, then say "note that again": a fresh Relay note is created (nothing is written into Recently Deleted)
+- [ ] "Type" into a slow web app (e.g. a busy chat tab): the dictated text is pasted, not your previous clipboard
 - [ ] "Remind me to buy milk": Relay asks for Reminders once; the reminder appears in your default list with no alert
 - [ ] "Remind me in 2 minutes to stretch": the reminder alerts about 2 minutes later
 - [ ] "Set a pasta timer for 1 minute": the panel shows it counting down; a notification with sound arrives when it ends

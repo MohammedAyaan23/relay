@@ -113,3 +113,44 @@ func timerRequests(_ transcript: String, _ expected: TimerRequest) {
 func timerTargets(_ transcript: String, _ expected: TimerTarget) {
     #expect(TimerParser.target(transcript) == expected)
 }
+
+// MARK: Final-review findings
+
+@Test func reminderTimesSpokenInOtherWays() {
+    #expect(ReminderParser.parse("remind me to leave at 5 p.m.", now: now, calendar: calendar)
+        == ReminderRequest(title: "leave", due: at(17)))
+    #expect(ReminderParser.parse("remind me at 8 to take pills", now: now, calendar: calendar)
+        == ReminderRequest(title: "take pills", due: at(20)))
+    #expect(ReminderParser.parse("remind me to buy milk at 3", now: now, calendar: calendar)
+        == ReminderRequest(title: "buy milk", due: at(15, daysFromNow: 1)))
+    #expect(ReminderParser.parse("remind me to watch the 2 o'clock match", now: now, calendar: calendar).due
+        == at(14, daysFromNow: 1))
+}
+
+@Test func reminderInDaysAndDecimalHours() {
+    #expect(ReminderParser.parse("remind me in 2 days to pay rent", now: now, calendar: calendar)
+        == ReminderRequest(title: "pay rent", due: now.addingTimeInterval(2 * 86_400)))
+    #expect(ReminderParser.parse("remind me in 1.5 hours to leave", now: now, calendar: calendar)
+        == ReminderRequest(title: "leave", due: now.addingTimeInterval(5400)))
+}
+
+@Test func remindersAreNeverDueInThePast() {
+    let late = calendar.date(bySettingHour: 21, minute: 0, second: 0, of: now)!
+    #expect(ReminderParser.parse("remind me tonight to lock up", now: late, calendar: calendar)
+        == ReminderRequest(title: "lock up", due: nil))
+    for phrase in ["remind me at 5 p.m. to go", "remind me at 8 to go", "remind me at 3pm to go", "remind me tonight to go",
+                   "remind me in 2 days to go", "remind me to go at noon"] {
+        let due = ReminderParser.parse(phrase, now: late, calendar: calendar).due
+        #expect(due == nil || due! > late, "\(phrase)")
+    }
+}
+
+@Test(arguments: [
+    ("set a timer for 1.5 hours", 5400),
+    ("timer for 1.5 minutes", 90),
+    ("timer for 1 1/2 hours", 5400),
+    ("timer for 2 and a half minutes", 150),
+])
+func fractionalTimerDurations(_ transcript: String, _ seconds: Int) {
+    #expect(TimerParser.parse(transcript).seconds == seconds)
+}

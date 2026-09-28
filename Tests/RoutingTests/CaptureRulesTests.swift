@@ -47,3 +47,15 @@ func captureWinsOverDeviceWords(_ transcript: String, _ expected: RoutedIntent) 
     #expect(CommandRules.match("tell claude to write tests") == nil)
     #expect(CommandRules.match("open the reminders app") == nil)
 }
+
+// MARK: Final-review findings
+
+@Test(arguments: ["delete my dentist reminder", "what's my next reminder", "the reminder app is broken"])
+func talkingAboutRemindersDoesNotCreateOne(_ transcript: String) {
+    #expect(CommandRules.match(transcript) != .addReminder)
+}
+
+@Test(arguments: ["set a reminder to call mum", "add a reminder for the dentist", "remind me to stretch"])
+func askingForAReminderStillWorks(_ transcript: String) {
+    #expect(CommandRules.match(transcript) == .addReminder)
+}

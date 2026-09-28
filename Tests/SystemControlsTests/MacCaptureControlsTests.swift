@@ -64,13 +64,22 @@ private func store() -> TimerStore {
 }
 
 @Test func addingANoteReadsThenWritesTheRelayNote() async throws {
+    let mine = "<div><h1>Relay</h1></div><div><i>Voice notes from Relay</i></div><div>Sep 27, 09:00 — old</div>"
     let runner = FakeRunner(installed: [])
-    await runner.setRunResult(CommandResult(status: 0, stdout: "<div><h1>Relay</h1></div><div>Sep 27, 09:00 — old</div>\n", stderr: ""))
+    await runner.setRunResult(CommandResult(status: 0, stdout: "id-mine\u{1f}0\u{1f}\(mine)\u{1e}\n", stderr: ""))
     try await MacCaptureControls(runner: runner, timers: store(), scheduler: FakeScheduler()).addNote("buy milk")
     let calls = await runner.calls
     #expect(calls.count == 2)
     #expect(calls.allSatisfy { $0.first == "/usr/bin/osascript" })
-    let written = try #require(calls.last?.last)
-    #expect(written.hasPrefix("<div><h1>Relay</h1></div><div>"))
-    #expect(written.contains("— buy milk</div><div>Sep 27, 09:00 — old</div>"))
+    let write = try #require(calls.last)
+    #expect(write.last == "id-mine")
+    #expect(write[write.count - 2].contains("— buy milk</div><div>Sep 27, 09:00 — old</div>"))
+}
+
+@Test func withoutRelaysOwnNoteANewOneIsCreated() async throws {
+    let runner = FakeRunner(installed: [])
+    await runner.setRunResult(CommandResult(status: 0, stdout: "id-user\u{1f}0\u{1f}<div><h1>Relay</h1></div><div>mine</div>\u{1e}\n", stderr: ""))
+    try await MacCaptureControls(runner: runner, timers: store(), scheduler: FakeScheduler()).addNote("buy milk")
+    let write = try #require(await runner.calls.last)
+    #expect(write.last == "") // empty id → make a new note; the user's own "Relay" note is untouched
 }
