@@ -34,6 +34,7 @@ public struct AssistantDependencies {
     public var opener: any URLOpening
     public var system: any SystemControlling
     public var workspace: any WorkspaceControlling
+    public var capture: any CaptureControlling
     /// nil when the claude executable couldn't be found.
     public var claude: (any ClaudeJobRunning)?
     public var log: any DecisionLogging
@@ -41,7 +42,7 @@ public struct AssistantDependencies {
     public var notify: @MainActor (String, String) -> Void
 
     public init(recorder: any AudioRecording, transcriber: any Transcribing, router: any IntentRouting,
-                apps: @escaping @Sendable () -> [InstalledApp], opener: any URLOpening, system: any SystemControlling, workspace: any WorkspaceControlling,
+                apps: @escaping @Sendable () -> [InstalledApp], opener: any URLOpening, system: any SystemControlling, workspace: any WorkspaceControlling, capture: any CaptureControlling,
                 claude: (any ClaudeJobRunning)?, log: any DecisionLogging,
                 notify: @escaping @MainActor (String, String) -> Void) {
         self.recorder = recorder
@@ -51,6 +52,7 @@ public struct AssistantDependencies {
         self.opener = opener
         self.system = system
         self.workspace = workspace
+        self.capture = capture
         self.claude = claude
         self.log = log
         self.notify = notify
@@ -80,6 +82,8 @@ public final class Assistant {
     /// Files matching a find/open/reveal request when there was more than one; the panel lists them.
     public private(set) var fileMatches: [FileMatch] = []
     public private(set) var fileMatchAction: FileMatchAction = .open
+    /// Running timers, for the panel's Timers section.
+    public private(set) var timers: [RelayTimer] = []
     public private(set) var missingPermission: PermissionKind?
     /// Setup failed for a reason other than permissions (e.g. a dropped model download); offer a retry.
     public private(set) var prepareFailed = false
@@ -477,8 +481,81 @@ public final class Assistant {
                 }
             }
 
-        case .typeText, .addNote, .addReminder, .startTimer, .timerStatus, .cancelTimer:
-            return Outcome("Relay can't do that yet.", .info)
+        case .typeText:
+            guard let dictated = DictationParser.text(from: text) else { return Outcome("What should I type?", .info) }
+            return await control("type into") {
+                let app = try await self.deps.capture.typeText(dictated)
+                return Outcome("Typed into \(app)", .success, extracted: dictated)
+            }
+
+        case .addNote:
+            guard let note = NoteParser.text(from: text) else { return Outcome("What should the note say?", .info) }
+            return await control("save the note") {
+                try await self.deps.capture.addNote(note)
+                let preview = note.count > 40 ? String(note.prefix(40)) + "…" : note
+                return Outcome("Noted: \(preview)", .success, extracted: note)
+            }
+
+        case .addReminder:
+            let calendar = Calendar.current
+            let now = Date()
+            let request = ReminderParser.parse(text, now: now, calendar: calendar)
+            guard let title = request.title else { return Outcome("What should I remind you about?", .info) }
+            return await control("add the reminder") {
+                try await self.deps.capture.addReminder(title: title, due: request.due)
+                guard let due = request.due else { return Outcome("Reminder added: \(title)", .success, extracted: title) }
+                return Outcome("Reminder set: \(title) — \(CaptureFormat.reminderTime(due, now: now, calendar: calendar))",
+                               .success, extracted: title)
+            }
+
+        case .startTimer:
+            let request = TimerParser.parse(text)
+            guard let seconds = request.seconds, seconds > 0 else { return Outcome("How long? Try “10 minutes”.", .info) }
+            return await control("start the timer") {
+                let start = try await self.deps.capture.startTimer(name: request.name, seconds: seconds)
+                self.timers = await self.deps.capture.activeTimers()
+                let label = start.timer.name == nil ? "Timer" : "\(CaptureFormat.displayName(start.timer)) timer"
+                var message = "\(label) set for \(CaptureFormat.duration(seconds))"
+                if !start.notificationsAllowed {
+                    message += ", but notifications are off for Relay, so turn them on to hear it"
+                }
+                return Outcome(message, .success)
+            }
+
+        case .timerStatus:
+            let running = await deps.capture.activeTimers()
+            timers = running
+            guard !running.isEmpty else { return Outcome("No timers running", .info) }
+            if case .named(let name) = TimerParser.target(text) {
+                let matching = running.filter { $0.name?.hasPrefix(name) == true }
+                guard !matching.isEmpty else { return Outcome("No \(name) timer running", .info) }
+                return Outcome(CaptureFormat.remaining(matching, now: Date()), .success)
+            }
+            return Outcome(CaptureFormat.remaining(running, now: Date()), .success)
+
+        case .cancelTimer:
+            let running = await deps.capture.activeTimers()
+            guard !running.isEmpty else {
+                timers = []
+                return Outcome("No timers running", .info)
+            }
+            let chosen: [RelayTimer]
+            switch TimerParser.target(text) {
+            case .all:
+                chosen = running
+            case .named(let name):
+                chosen = Array(running.filter { $0.name == name }.prefix(1))
+                guard !chosen.isEmpty else { return Outcome("No \(name) timer running", .info) }
+            case .unspecified:
+                guard running.count == 1 else {
+                    return Outcome("Which timer? \(running.map(CaptureFormat.displayName).joined(separator: ", "))", .info)
+                }
+                chosen = running
+            }
+            for timer in chosen { await deps.capture.cancelTimer(id: timer.id) }
+            timers = await deps.capture.activeTimers()
+            if chosen.count > 1 { return Outcome("Cancelled \(chosen.count) timers", .success) }
+            return Outcome(chosen[0].name.map { "Cancelled the \($0) timer" } ?? "Cancelled the timer", .success)
         }
     }
 
@@ -582,6 +659,16 @@ public final class Assistant {
         } catch {
             return Outcome("Couldn't \(action): \(error.localizedDescription)", .problem)
         }
+    }
+
+    public func refreshTimers() async {
+        timers = await deps.capture.activeTimers()
+    }
+
+    /// Cancels a timer from the panel's ✕.
+    public func cancelTimer(_ timer: RelayTimer) async {
+        await deps.capture.cancelTimer(id: timer.id)
+        timers = await deps.capture.activeTimers()
     }
 
     /// Opens or reveals one file the user picked from the panel list.

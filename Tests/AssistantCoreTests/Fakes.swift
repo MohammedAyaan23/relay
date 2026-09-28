@@ -176,6 +176,38 @@ actor FakeWorkspace: WorkspaceControlling {
     }
 }
 
+actor FakeCapture: CaptureControlling {
+    private(set) var calls: [String] = []
+    var frontApp = "TextEdit"
+    var failure: SystemControlError?
+    var notificationsAllowed = true
+    var running: [RelayTimer] = []
+
+    func fail(with error: SystemControlError?) { failure = error }
+    func setNotificationsAllowed(_ value: Bool) { notificationsAllowed = value }
+    func setRunning(_ timers: [RelayTimer]) { running = timers }
+
+    private func record(_ call: String) throws {
+        calls.append(call)
+        if let failure { throw failure }
+    }
+
+    func typeText(_ text: String) throws -> String { try record("type(\(text))"); return frontApp }
+    func addNote(_ text: String) throws { try record("note(\(text))") }
+    func addReminder(title: String, due: Date?) throws { try record("reminder(\(title), due: \(due != nil))") }
+    func startTimer(name: String?, seconds: Int) throws -> TimerStart {
+        try record("start(\(name ?? "-"), \(seconds))")
+        let timer = RelayTimer(id: UUID(), name: name, endsAt: Date().addingTimeInterval(TimeInterval(seconds)))
+        running.append(timer)
+        return TimerStart(timer: timer, notificationsAllowed: notificationsAllowed)
+    }
+    func activeTimers() -> [RelayTimer] { running }
+    func cancelTimer(id: UUID) {
+        calls.append("cancel(\(running.first { $0.id == id }?.name ?? "-"))")
+        running.removeAll { $0.id == id }
+    }
+}
+
 let safari = InstalledApp(name: "Safari", url: URL(fileURLWithPath: "/Applications/Safari.app"))
 
 @MainActor
@@ -186,6 +218,7 @@ final class Harness {
     let opener = FakeOpener()
     let system = FakeSystem()
     let workspace = FakeWorkspace()
+    let capture = FakeCapture()
     let claude: FakeClaude?
     let log = MemoryLog()
     private(set) var notifications: [String] = []
@@ -200,7 +233,7 @@ final class Harness {
         try? FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
         let deps = AssistantDependencies(
             recorder: recorder, transcriber: transcriber, router: router,
-            apps: { [safari] }, opener: opener, system: system, workspace: workspace, claude: claude, log: log,
+            apps: { [safari] }, opener: opener, system: system, workspace: workspace, capture: capture, claude: claude, log: log,
             notify: { [weak self] title, _ in self?.notifications.append(title) })
         assistant = Assistant(dependencies: deps, activeProject: project)
     }

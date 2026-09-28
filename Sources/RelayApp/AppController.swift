@@ -12,11 +12,14 @@ import Transcription
 @MainActor
 final class AppController {
     let assistant: Assistant
+    private let capture: MacCaptureControls
     private lazy var panel = PanelController(assistant: assistant, controller: self)
     private lazy var hud = HUDController(assistant: assistant)
 
     init() {
         Preferences.registerDefaults()
+        let capture = MacCaptureControls()
+        self.capture = capture
         let claudeURL = ClaudeLocator.locate(override: UserDefaults.standard.string(forKey: Preferences.claudePathOverride))
         let dependencies = AssistantDependencies(
             recorder: MicRecorder(),
@@ -26,6 +29,7 @@ final class AppController {
             opener: WorkspaceOpener(),
             system: MacSystemControls(),
             workspace: MacWorkspaceControls(),
+            capture: capture,
             claude: claudeURL.map { ClaudeRunner(executable: $0, sessions: SessionStore(fileURL: SessionStore.defaultFileURL)) },
             log: DecisionLog(fileURL: DecisionLog.defaultFileURL),
             notify: { title, body in Notifier.post(title: title, body: body) })
@@ -34,6 +38,7 @@ final class AppController {
 
     func start() {
         Notifier.requestAuthorization()
+        capture.pruneTimers()
         KeyboardShortcuts.onKeyUp(for: .toggleListening) { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
