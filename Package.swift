@@ -23,6 +23,8 @@ let package = Package(
         .testTarget(name: "CaptureTests", dependencies: ["Capture"]),
         .target(name: "HUDKit"),
         .testTarget(name: "HUDKitTests", dependencies: ["HUDKit"]),
+        .target(name: "SystemControls", dependencies: ["Extraction"]),
+        .testTarget(name: "SystemControlsTests", dependencies: ["SystemControls", "Extraction"]),
         .target(name: "AssistantCore", dependencies: ["Extraction", "Actions", "Routing", "Capture", "Transcription"]),
         .testTarget(name: "AssistantCoreTests", dependencies: [
             "AssistantCore", "Actions", "Capture", "Extraction", "Routing", "Transcription",
