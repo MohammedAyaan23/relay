@@ -15,6 +15,9 @@ public enum SystemControlError: Error, Equatable {
     case accessibilityDenied
     case screenRecordingDenied
     case failed(String)
+    case appNotRunning(String)
+    case noFrontWindow
+    case searchFailed(String)
 }
 
 /// Everything Relay can change on the Mac. A protocol so the assistant can be tested with a fake.

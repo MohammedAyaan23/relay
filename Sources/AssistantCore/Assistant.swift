@@ -456,6 +456,8 @@ public final class Assistant {
                 return Outcome("Relay needs Screen Recording permission to take screenshots. Allow it, then quit and reopen Relay.", .problem)
             case .failed(let reason):
                 return Outcome("Couldn't \(action): \(reason)", .problem)
+            case .appNotRunning, .noFrontWindow, .searchFailed:
+                return Outcome("Couldn't \(action).", .problem)
             }
         } catch {
             return Outcome("Couldn't \(action): \(error.localizedDescription)", .problem)
