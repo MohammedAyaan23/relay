@@ -5,6 +5,7 @@ import Synchronization
 @testable import Capture
 @testable import Extraction
 @testable import Routing
+@testable import SystemControls
 @testable import Transcription
 
 @MainActor
@@ -97,6 +98,34 @@ final class MemoryLog: DecisionLogging {
     var all: [DecisionLogEntry] { entries.withLock { $0 } }
 }
 
+actor FakeSystem: SystemControlling {
+    private(set) var calls: [String] = []
+    var currentVolume = 50
+    var failure: SystemControlError?
+
+    func setCurrentVolume(_ value: Int) { currentVolume = value }
+    func fail(with error: SystemControlError?) { failure = error }
+
+    private func record(_ call: String) throws {
+        calls.append(call)
+        if let failure { throw failure }
+    }
+
+    func volume() throws -> Int { try record("volume()"); return currentVolume }
+    func setVolume(_ percent: Int) throws { try record("setVolume(\(percent))"); currentVolume = percent }
+    func setMuted(_ muted: Bool) throws { try record("setMuted(\(muted))") }
+    func setBrightness(percent: Int) throws { try record("setBrightness(\(percent))") }
+    func stepBrightness(up: Bool, presses: Int) throws { try record("stepBrightness(up: \(up), presses: \(presses))") }
+    func setFocus(on: Bool) throws { try record("setFocus(\(on))") }
+    func setDarkMode(_ mode: SwitchCommand) throws { try record("setDarkMode(\(mode))") }
+    func lockScreen() throws { try record("lockScreen()") }
+    func pressMediaKey(_ key: MediaKey) throws { try record("pressMediaKey(\(key))") }
+    func takeScreenshot() throws -> URL {
+        try record("takeScreenshot()")
+        return URL(fileURLWithPath: "/Users/test/Desktop/Screenshot 2026-09-28 at 11.48.03.png")
+    }
+}
+
 let safari = InstalledApp(name: "Safari", url: URL(fileURLWithPath: "/Applications/Safari.app"))
 
 @MainActor
@@ -105,6 +134,7 @@ final class Harness {
     let transcriber: FakeTranscriber
     let router: FakeRouter
     let opener = FakeOpener()
+    let system = FakeSystem()
     let claude: FakeClaude?
     let log = MemoryLog()
     private(set) var notifications: [String] = []
@@ -119,7 +149,7 @@ final class Harness {
         try? FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
         let deps = AssistantDependencies(
             recorder: recorder, transcriber: transcriber, router: router,
-            apps: { [safari] }, opener: opener, claude: claude, log: log,
+            apps: { [safari] }, opener: opener, system: system, claude: claude, log: log,
             notify: { [weak self] title, _ in self?.notifications.append(title) })
         assistant = Assistant(dependencies: deps, activeProject: project)
     }

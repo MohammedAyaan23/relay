@@ -6,6 +6,7 @@ import Extraction
 @preconcurrency import KeyboardShortcuts
 import Observation
 import Routing
+import SystemControls
 import Transcription
 
 @MainActor
@@ -23,6 +24,7 @@ final class AppController {
             router: LayaRouter(thresholds: Preferences.thresholds),
             apps: { AppIndex.scan() },
             opener: WorkspaceOpener(),
+            system: MacSystemControls(),
             claude: claudeURL.map { ClaudeRunner(executable: $0, sessions: SessionStore(fileURL: SessionStore.defaultFileURL)) },
             log: DecisionLog(fileURL: DecisionLog.defaultFileURL),
             notify: { title, body in Notifier.post(title: title, body: body) })

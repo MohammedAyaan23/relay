@@ -4,6 +4,7 @@ import Extraction
 import Foundation
 import Observation
 import Routing
+import SystemControls
 import Transcription
 
 /// How the last command turned out, for the HUD's icon.
@@ -14,6 +15,9 @@ public enum ResultKind: Sendable, Equatable {
 public enum PermissionKind: Sendable, Equatable {
     case microphone
     case speechRecognition
+    case accessibility
+    case screenRecording
+    case automation
 }
 
 public struct AssistantDependencies {
@@ -22,6 +26,7 @@ public struct AssistantDependencies {
     public var router: any IntentRouting
     public var apps: @Sendable () -> [InstalledApp]
     public var opener: any URLOpening
+    public var system: any SystemControlling
     /// nil when the claude executable couldn't be found.
     public var claude: (any ClaudeJobRunning)?
     public var log: any DecisionLogging
@@ -29,7 +34,7 @@ public struct AssistantDependencies {
     public var notify: @MainActor (String, String) -> Void
 
     public init(recorder: any AudioRecording, transcriber: any Transcribing, router: any IntentRouting,
-                apps: @escaping @Sendable () -> [InstalledApp], opener: any URLOpening,
+                apps: @escaping @Sendable () -> [InstalledApp], opener: any URLOpening, system: any SystemControlling,
                 claude: (any ClaudeJobRunning)?, log: any DecisionLogging,
                 notify: @escaping @MainActor (String, String) -> Void) {
         self.recorder = recorder
@@ -37,6 +42,7 @@ public struct AssistantDependencies {
         self.router = router
         self.apps = apps
         self.opener = opener
+        self.system = system
         self.claude = claude
         self.log = log
         self.notify = notify
@@ -59,6 +65,10 @@ public final class Assistant {
     public private(set) var decision: RoutingDecision?
     public private(set) var message: String?
     public private(set) var resultKind: ResultKind?
+    /// 0…1 for results with a known level (volume, brightness set), shown as a bar in the pill.
+    public private(set) var resultLevel: Double?
+    /// The helper shortcut the user needs to set up, e.g. "Relay Brightness".
+    public private(set) var missingShortcut: String?
     public private(set) var missingPermission: PermissionKind?
     /// Setup failed for a reason other than permissions (e.g. a dropped model download); offer a retry.
     public private(set) var prepareFailed = false
@@ -134,6 +144,9 @@ public final class Assistant {
                 transcript = nil
                 decision = nil
                 resultKind = nil
+                resultLevel = nil
+                missingShortcut = nil
+                missingPermission = nil
                 phase = .listening
                 message = "Listening… press the hotkey again when you're done."
             } catch CaptureError.permissionDenied {
@@ -295,8 +308,140 @@ public final class Assistant {
             }
             return Outcome("Claude is working on it in \(project.lastPathComponent)…", .success, extracted: prompt)
 
-        case .volume, .brightness, .darkMode, .focus, .lock, .screenshot, .mediaPlayPause, .mediaNext, .mediaPrevious:
-            return Outcome("Relay can't do that yet.", .info)
+        case .volume:
+            guard let command = LevelParser.parse(text) else {
+                return Outcome("What volume? Try a percentage, like 40 percent.", .info)
+            }
+            return await control("change the volume") { try await self.changeVolume(command) }
+
+        case .brightness:
+            guard let command = LevelParser.parse(text), command != .mute, command != .unmute else {
+                return Outcome("What brightness? Try a percentage, like 70 percent.", .info)
+            }
+            return await control("change the brightness") { try await self.changeBrightness(command) }
+
+        case .darkMode:
+            let mode = SwitchParser.darkMode(text)
+            return await control("switch dark mode") {
+                try await self.deps.system.setDarkMode(mode)
+                let message = switch mode {
+                case .on: "Dark mode on"
+                case .off: "Dark mode off"
+                case .toggle: "Switched appearance"
+                }
+                return Outcome(message, .success)
+            }
+
+        case .focus:
+            let on = SwitchParser.focusOn(text)
+            return await control("change Do Not Disturb") {
+                try await self.deps.system.setFocus(on: on)
+                return Outcome(on ? "Do Not Disturb on" : "Do Not Disturb off", .success)
+            }
+
+        case .lock:
+            return await control("lock the screen") {
+                try await self.deps.system.lockScreen()
+                return Outcome("Locking…", .success)
+            }
+
+        case .screenshot:
+            return await control("take a screenshot") {
+                let file = try await self.deps.system.takeScreenshot()
+                return Outcome("Screenshot saved to \(file.deletingLastPathComponent().lastPathComponent)", .success)
+            }
+
+        case .mediaPlayPause:
+            return await control("play or pause") {
+                try await self.deps.system.pressMediaKey(.playPause)
+                return Outcome("Play/Pause", .success)
+            }
+
+        case .mediaNext:
+            return await control("skip to the next track") {
+                try await self.deps.system.pressMediaKey(.next)
+                return Outcome("Next track", .success)
+            }
+
+        case .mediaPrevious:
+            return await control("go to the previous track") {
+                try await self.deps.system.pressMediaKey(.previous)
+                return Outcome("Previous track", .success)
+            }
+        }
+    }
+
+    private func changeVolume(_ command: LevelCommand) async throws -> Outcome {
+        let system = deps.system
+        let level: Int
+        switch command {
+        case .mute:
+            try await system.setMuted(true)
+            return Outcome("Muted", .success)
+        case .unmute:
+            try await system.setMuted(false)
+            resultLevel = Double(try await system.volume()) / 100
+            return Outcome("Unmuted", .success)
+        case .set(let percent):
+            try await system.setVolume(percent)
+            if percent > 0 { try await system.setMuted(false) }
+            level = percent
+        case .up(let step):
+            level = min(100, try await system.volume() + step)
+            try await system.setMuted(false)
+            try await system.setVolume(level)
+        case .down(let step):
+            level = max(0, try await system.volume() - step)
+            try await system.setVolume(level)
+        }
+        resultLevel = Double(level) / 100
+        return Outcome("Volume \(level)%", .success)
+    }
+
+    private func changeBrightness(_ command: LevelCommand) async throws -> Outcome {
+        switch command {
+        case .set(let percent):
+            try await deps.system.setBrightness(percent: percent)
+            resultLevel = Double(percent) / 100
+            return Outcome("Brightness \(percent)%", .success)
+        case .up(let step), .down(let step):
+            var up = false
+            if case .up = command { up = true }
+            try await deps.system.stepBrightness(up: up, presses: step <= 6 ? 1 : 2)
+            return Outcome(up ? "Brighter" : "Dimmer", .success)
+        case .mute, .unmute:
+            return Outcome("What brightness? Try a percentage, like 70 percent.", .info)
+        }
+    }
+
+    /// Runs a system action, turning its errors into the messages from spec §5.
+    private func control(_ action: String, _ body: () async throws -> Outcome) async -> Outcome {
+        do {
+            return try await body()
+        } catch let error as SystemControlError {
+            switch error {
+            case .noVolumeControl:
+                return Outcome("This audio device doesn't allow volume control.", .problem)
+            case .shortcutMissing(let name):
+                missingShortcut = name
+                let feature = name == ShortcutsBridge.brightness ? "Brightness" : "Do Not Disturb"
+                return Outcome("\(feature) needs a one-time setup.", .info)
+            case .shortcutFailed(let name, let reason):
+                return Outcome("The \(name) shortcut failed: \(reason)", .problem)
+            case .automationDenied:
+                missingPermission = .automation
+                return Outcome("Relay needs permission to control System Events for dark mode.", .problem)
+            case .accessibilityDenied:
+                missingPermission = .accessibility
+                return Outcome("Relay needs Accessibility access to press keys for you.", .problem)
+            case .screenRecordingDenied:
+                missingPermission = .screenRecording
+                return Outcome("Relay needs Screen Recording permission to take screenshots.", .problem)
+            case .failed(let reason):
+                return Outcome("Couldn't \(action): \(reason)", .problem)
+            }
+        } catch {
+            return Outcome("Couldn't \(action): \(error.localizedDescription)", .problem)
         }
     }
 
