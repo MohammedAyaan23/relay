@@ -1,4 +1,3 @@
-@preconcurrency import KeyboardShortcuts
 import SwiftUI
 
 struct SettingsView: View {
@@ -9,7 +8,7 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            KeyboardShortcuts.Recorder("Start/stop listening:", name: .toggleListening)
+            HotkeyRecorder()
             TextField("claude path:", text: $claudePath, prompt: Text("found automatically"))
             Text("Restart Relay after changing the claude path.")
                 .font(.caption)

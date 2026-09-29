@@ -8,7 +8,6 @@ let package = Package(
     dependencies: [
         // Pinned to a commit: FluidUse's README says 0.2.1, but the newest tag is v0.2.0.
         .package(url: "https://github.com/FluidInference/FluidUse.git", revision: "e0d4215ae395a877e9d11bbb75bb26413137ab05"),
-        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts.git", exact: "1.10.0"),
     ],
     targets: [
         .target(name: "Extraction"),
@@ -33,7 +32,6 @@ let package = Package(
         ]),
         .executableTarget(name: "RelayApp", dependencies: [
             "AppSupport", "AssistantCore", "Actions", "Capture", "Transcription", "Routing", "Extraction", "HUDKit", "SystemControls",
-            .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
         ]),
     ]
 )

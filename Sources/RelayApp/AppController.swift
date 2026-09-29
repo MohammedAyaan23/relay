@@ -1,9 +1,9 @@
 import Actions
+import AppSupport
 import AppKit
 import AssistantCore
 import Capture
 import Extraction
-@preconcurrency import KeyboardShortcuts
 import Observation
 import Routing
 import SystemControls
@@ -39,24 +39,28 @@ final class AppController {
     func start() {
         Notifier.requestAuthorization()
         capture.pruneTimers()
-        KeyboardShortcuts.onKeyUp(for: .toggleListening) { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                // A light tap on the trackpad (if a finger is on it) confirms start/stop.
-                NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
-                self.hud.present()
-                Task {
-                    await self.assistant.hotkeyPressed()
-                    // Still listening: keep the pill. Otherwise show the result briefly, then fade.
-                    if self.assistant.phase != .listening { self.hud.scheduleHide() }
-                }
-            }
+        HotkeyCenter.shared.onPress = { [weak self] in self?.hotkeyFired() }
+        let hotkey = HotkeyStore.load(from: .standard)
+        if !HotkeyCenter.shared.register(hotkey) {
+            Notifier.post(title: "Relay's shortcut is taken",
+                          body: "\(hotkey.displayText) is taken by another app. Choose a different shortcut in Relay's Settings.")
         }
         watchForPanelWorthyChanges()
         hud.present()
         Task {
             await assistant.prepare()
             hud.scheduleHide()
+        }
+    }
+
+    private func hotkeyFired() {
+        // A light tap on the trackpad (if a finger is on it) confirms start/stop.
+        NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+        hud.present()
+        Task {
+            await assistant.hotkeyPressed()
+            // Still listening: keep the pill. Otherwise show the result briefly, then fade.
+            if assistant.phase != .listening { hud.scheduleHide() }
         }
     }
 

@@ -1,8 +1,8 @@
 #!/bin/bash
 # Builds build/Relay.app from this checkout: release build, bundle layout, Info.plist, local signature.
 #
-# SwiftPM resource bundles (FluidUse, KeyboardShortcuts) are looked up at the .app root, which codesign
-# rejects, and then in this checkout's .build folder. So Relay.app works when built from this checkout.
+# SwiftPM resource bundles are looked up at the .app root, which codesign rejects, and then in this
+# checkout's .build folder. Relay must not call Bundle.module; `make check-portable` proves it doesn't.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

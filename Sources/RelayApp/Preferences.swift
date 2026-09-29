@@ -1,10 +1,5 @@
 import Foundation
-@preconcurrency import KeyboardShortcuts
 import Routing
-
-extension KeyboardShortcuts.Name {
-    static let toggleListening = Self("toggleListening", default: .init(.space, modifiers: [.option]))
-}
 
 /// UserDefaults keys and the values derived from them.
 enum Preferences {
