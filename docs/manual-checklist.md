@@ -15,7 +15,11 @@ microphone/speech permission again after rebuilding.
 - [ ] Say "tell Claude to run python3 -c 'print(1)'": the result mentions "Blocked: Bash: …"
 - [ ] Start a long Claude task, press Stop: the panel shows "Stopped Claude."
 - [ ] Say "start a new Claude session": "Started a new Claude session for <name>."
-- [ ] Settings…: change the hotkey; the new hotkey works and the old one doesn't
+- [ ] Settings…: click the hotkey, press ⌃⌘R: the new hotkey works and ⌥Space doesn't
+- [ ] Settings…: click the hotkey, press R alone: "Add ⌘, ⌥, ⌃ or ⇧"; press Esc: recording stops and the old hotkey still works
+- [ ] Settings…: click the hotkey, press a shortcut another app holds (e.g. ⌘Space if Spotlight uses it): "That shortcut is taken, so try another" or it registers but never fires — either way, set it back and the old one works
+- [ ] Settings…: click the hotkey, then close Settings without pressing anything: the hotkey still works
+- [ ] After updating from a build that used KeyboardShortcuts: the hotkey you had before still works
 - [ ] Quit while Claude is running: Relay quits and no `claude` process is left (`pgrep -fl "claude -p"`)
 - [ ] Say "open photoshop" (not installed): the pill shows an orange ⚠ "No app matching …"
 - [ ] Press ⌥Space twice quickly several times: the pill never gets stuck on screen
@@ -69,3 +73,14 @@ microphone/speech permission again after rebuilding.
 - [ ] Start a 2-minute timer, quit Relay, wait: the notification still arrives
 - [ ] Start two timers; "how long is left on the timer" lists both; "cancel the pasta timer" removes only that one; the panel's ✕ cancels the other
 - [ ] `~/Library/Application Support/Relay/decisions.jsonl` has one line per command
+
+## Installing (end users)
+
+- [ ] `make release` (with the certificate set up) builds `dist/Relay-<version>.dmg` and prints "Portability check: ok"
+- [ ] In a new macOS user account: open the DMG, drag Relay to Applications, open it, click Open Anyway in Privacy & Security, and Relay starts
+- [ ] The welcome window appears once: step 1 shows the hotkey recorder; step 2 shows Microphone/Speech rows (Allow works, ✓ appears) and the Laya download progress then "Ready ✓"; step 3 shows whether Claude Code was found
+- [ ] Close the welcome window at step 1, relaunch: it doesn't come back; menu → Welcome… opens it at step 1
+- [ ] Bump VERSION, `make release`, install the new DMG over the old app: Microphone, Speech and Accessibility are still granted (no prompts)
+- [ ] With `ReleaseInfo.repository` set to a repo whose latest release is newer: Settings → Check now shows "Update available: v…", and the menu shows "Update available: v…" which opens the release page
+- [ ] Turn off "Check for updates automatically": no check happens on the next launch (Settings → Check now still works)
+- [ ] Settings shows "Relay <version> (build N)" at the bottom
