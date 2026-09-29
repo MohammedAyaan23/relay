@@ -16,6 +16,7 @@ final class AppController {
     private let capture: MacCaptureControls
     private lazy var panel = PanelController(assistant: assistant, controller: self)
     private lazy var hud = HUDController(assistant: assistant)
+    private lazy var welcome = WelcomeWindow(controller: self)
 
     init() {
         Preferences.registerDefaults()
@@ -48,6 +49,7 @@ final class AppController {
         }
         watchForPanelWorthyChanges()
         updates.start()
+        if WelcomeFlow.shouldShowOnLaunch(.standard) { welcome.show() }
         hud.present()
         Task {
             await assistant.prepare()
@@ -90,6 +92,10 @@ final class AppController {
 
     func showPanel() {
         panel.show()
+    }
+
+    func showWelcome() {
+        welcome.show()
     }
 
     func chooseProject() {

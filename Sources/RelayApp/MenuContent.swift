@@ -17,6 +17,7 @@ struct MenuContent: View {
             .disabled(assistant.activeProject == nil)
         Divider()
         Button("Show Panel") { controller.showPanel() }
+        Button("Welcome…") { controller.showWelcome() }
         SettingsLink { Text("Settings…") }
         Divider()
         Button("Quit Relay") { NSApp.terminate(nil) }

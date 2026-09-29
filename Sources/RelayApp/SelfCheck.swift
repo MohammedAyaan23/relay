@@ -13,6 +13,9 @@ enum SelfCheck {
         check("settings", SettingsView(controller: controller))
         check("panel", PanelView(assistant: controller.assistant, controller: controller))
         check("hud", HUDView(assistant: controller.assistant, model: HUDModel()))
+        for step in WelcomeStep.allCases {
+            check("welcome-\(step)", WelcomeView(controller: controller, startAt: step))
+        }
         _ = HotkeyStore.load(from: UserDefaults(suiteName: "relay-self-check")!)
         print("self-check: version \(AppInfo.version ?? "none")")
         print("self-check ok")
