@@ -3,6 +3,7 @@ spike/
 
 # Build output
 .build/
+dist/
 .swiftpm/
 build/
 

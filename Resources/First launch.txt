@@ -1,0 +1,12 @@
+Installing Relay
+
+1. Drag Relay onto the Applications folder, then open Relay from Applications.
+
+2. macOS says it can't verify the developer, because Relay is free and not signed by Apple.
+   Open System Settings > Privacy & Security, scroll down, and click "Open Anyway" next to Relay.
+   You only need to do this once.
+
+3. Relay appears in the menu bar at the top right. A welcome window explains the rest.
+
+Requirements: a Mac with Apple Silicon and macOS 26 or later.
+Claude Code is optional; it's only needed for "tell Claude to..." commands.
