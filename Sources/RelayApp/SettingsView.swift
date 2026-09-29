@@ -19,6 +19,9 @@ struct SettingsView: View {
             Slider(value: $choice, in: 0.05...0.95) {
                 Text("Action choice: \(choice, format: .number.precision(.fractionLength(2)))")
             }
+            Text(AppInfo.displayText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .padding()
         .frame(width: 440)
