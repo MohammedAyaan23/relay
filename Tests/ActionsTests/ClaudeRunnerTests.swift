@@ -85,3 +85,17 @@ private func collect(_ stream: AsyncStream<ClaudeEvent>) async -> [ClaudeEvent] 
     try await s.runner.clearSession(for: s.project)
     #expect(s.store.sessionID(for: s.project) == nil)
 }
+
+/// A child process that keeps Claude's output pipe open (here: the fake's background `sleep 30`) must not
+/// keep the runner busy after Stop. Waiting first lets the fake install its handler and start the child.
+@Test func stopFinishesPromptlyEvenIfAChildHoldsTheOutputOpen() async throws {
+    let s = try Setup()
+    let stream = try await s.runner.run(prompt: "slow", project: s.project)
+    try await Task.sleep(for: .milliseconds(500))
+    let start = ContinuousClock.now
+    await s.runner.stop()
+    let events = await collect(stream)
+    #expect(ContinuousClock.now - start < .seconds(5))
+    #expect(events.last == .stopped)
+    #expect(await s.runner.isRunning == false)
+}

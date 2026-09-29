@@ -47,10 +47,18 @@ public actor ClaudeRunner: ClaudeJobRunning {
         let stderr = Pipe()
         process.standardOutput = stdout
         process.standardError = stderr
+        let output = PipeReader(stdout.fileHandleForReading)
+        let errors = PipeReader(stderr.fileHandleForReading)
         let exit = AsyncStream<Int32>.makeStream()
         process.terminationHandler = { finished in
             exit.continuation.yield(finished.terminationStatus)
             exit.continuation.finish()
+            // The pipes normally close as Claude exits. A leftover child process can hold them open, which
+            // used to keep the runner busy for as long as the child lived; stop listening shortly after exit.
+            DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(500)) {
+                output.finish()
+                errors.finish()
+            }
         }
         try process.run()
         self.process = process
@@ -59,29 +67,25 @@ public actor ClaudeRunner: ClaudeJobRunning {
         let (events, continuation) = AsyncStream<ClaudeEvent>.makeStream()
         let sessions = sessions
         Task {
-            let stderrText = Task { await Self.readAll(stderr.fileHandleForReading) }
-            do {
-                for try await line in stdout.fileHandleForReading.bytes.lines {
-                    for event in ClaudeStreamParser.parse(line: line) {
-                        if case .finished(let result) = event, !result.isError, !result.sessionID.isEmpty {
-                            try? sessions.setSessionID(result.sessionID, for: project)
-                        }
-                        continuation.yield(event)
+            for await line in output.lines {
+                for event in ClaudeStreamParser.parse(line: line) {
+                    if case .finished(let result) = event, !result.isError, !result.sessionID.isEmpty {
+                        try? sessions.setSessionID(result.sessionID, for: project)
                     }
+                    continuation.yield(event)
                 }
-            } catch {
-                continuation.yield(.ignored(type: "stdout-read-error"))
             }
             var status: Int32 = 0
             for await code in exit.stream { status = code }
-            let errors = await stderrText.value
-            if errors.contains("No conversation found") {
+            for await _ in errors.lines {} // until stderr ends (or the grace period stops it)
+            let errorText = errors.text
+            if errorText.contains("No conversation found") {
                 try? sessions.setSessionID(nil, for: project)
             }
             if stopRequested {
                 continuation.yield(.stopped)
             } else if status != 0 {
-                continuation.yield(.failed(exitCode: status, stderrTail: Self.tail(errors, lines: 20)))
+                continuation.yield(.failed(exitCode: status, stderrTail: Self.tail(errorText, lines: 20)))
             }
             self.process = nil
             continuation.finish()
@@ -98,14 +102,6 @@ public actor ClaudeRunner: ClaudeJobRunning {
             try? await Task.sleep(for: .seconds(3))
             if process.isRunning { process.terminate() }
         }
-    }
-
-    private static func readAll(_ handle: FileHandle) async -> String {
-        var data = Data()
-        do {
-            for try await byte in handle.bytes { data.append(byte) }
-        } catch {}
-        return String(decoding: data, as: UTF8.self)
     }
 
     static func tail(_ text: String, lines: Int) -> String {
