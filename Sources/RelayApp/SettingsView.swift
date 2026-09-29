@@ -5,6 +5,7 @@ struct SettingsView: View {
     @AppStorage(Preferences.claudePathOverride) private var claudePath = ""
     @AppStorage(Preferences.gateThreshold) private var gate = 0.5
     @AppStorage(Preferences.choiceThreshold) private var choice = 0.35
+    @AppStorage(Preferences.checkForUpdates) private var checkForUpdates = true
 
     var body: some View {
         Form {
@@ -18,6 +19,17 @@ struct SettingsView: View {
             }
             Slider(value: $choice, in: 0.05...0.95) {
                 Text("Action choice: \(choice, format: .number.precision(.fractionLength(2)))")
+            }
+            if controller.updates.isConfigured {
+                Toggle("Check for updates automatically", isOn: $checkForUpdates)
+                HStack {
+                    Button("Check now") { Task { await controller.updates.checkNow() } }
+                    if let update = controller.updates.available, controller.updates.manualStatus?.hasPrefix("Update") == true {
+                        Link("Update available: v\(update.version)", destination: update.url)
+                    } else if let status = controller.updates.manualStatus {
+                        Text(status).foregroundStyle(.secondary)
+                    }
+                }
             }
             Text(AppInfo.displayText)
                 .font(.caption)

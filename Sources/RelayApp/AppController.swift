@@ -12,6 +12,7 @@ import Transcription
 @MainActor
 final class AppController {
     let assistant: Assistant
+    let updates = UpdateController()
     private let capture: MacCaptureControls
     private lazy var panel = PanelController(assistant: assistant, controller: self)
     private lazy var hud = HUDController(assistant: assistant)
@@ -46,6 +47,7 @@ final class AppController {
                           body: "\(hotkey.displayText) is taken by another app. Choose a different shortcut in Relay's Settings.")
         }
         watchForPanelWorthyChanges()
+        updates.start()
         hud.present()
         Task {
             await assistant.prepare()

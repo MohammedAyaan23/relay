@@ -7,9 +7,11 @@ enum Preferences {
     static let claudePathOverride = "claudePathOverride"
     static let gateThreshold = "gateThreshold"
     static let choiceThreshold = "choiceThreshold"
+    static let checkForUpdates = "checkForUpdates"
+    static let lastUpdateCheck = "lastUpdateCheck"
 
     static func registerDefaults() {
-        UserDefaults.standard.register(defaults: [gateThreshold: 0.5, choiceThreshold: 0.35])
+        UserDefaults.standard.register(defaults: [gateThreshold: 0.5, choiceThreshold: 0.35, checkForUpdates: true])
     }
 
     static var thresholds: RoutingThresholds {

@@ -7,6 +7,10 @@ struct MenuContent: View {
     let assistant: Assistant
 
     var body: some View {
+        if let update = controller.updates.available {
+            Button("Update available: v\(update.version)…") { NSWorkspace.shared.open(update.url) }
+            Divider()
+        }
         Text(assistant.activeProject.map { "Project: \($0.lastPathComponent)" } ?? "No active project")
         Button("Choose Active Project…") { controller.chooseProject() }
         Button("New Claude Session") { Task { await assistant.startNewClaudeSession() } }
