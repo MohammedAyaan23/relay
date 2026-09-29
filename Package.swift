@@ -23,6 +23,8 @@ let package = Package(
         .testTarget(name: "CaptureTests", dependencies: ["Capture"]),
         .target(name: "HUDKit"),
         .testTarget(name: "HUDKitTests", dependencies: ["HUDKit"]),
+        .target(name: "AppSupport"),
+        .testTarget(name: "AppSupportTests", dependencies: ["AppSupport"]),
         .target(name: "SystemControls", dependencies: ["Extraction"]),
         .testTarget(name: "SystemControlsTests", dependencies: ["SystemControls", "Extraction"]),
         .target(name: "AssistantCore", dependencies: ["Extraction", "Actions", "Routing", "Capture", "Transcription", "SystemControls"]),
@@ -30,7 +32,7 @@ let package = Package(
             "AssistantCore", "Actions", "Capture", "Extraction", "Routing", "Transcription", "SystemControls",
         ]),
         .executableTarget(name: "RelayApp", dependencies: [
-            "AssistantCore", "Actions", "Capture", "Transcription", "Routing", "Extraction", "HUDKit", "SystemControls",
+            "AppSupport", "AssistantCore", "Actions", "Capture", "Transcription", "Routing", "Extraction", "HUDKit", "SystemControls",
             .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
         ]),
     ]
