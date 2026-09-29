@@ -54,7 +54,7 @@ public struct Hotkey: Codable, Equatable, Sendable {
   - the key name is "Space", "Return", "Tab", "Esc", "Delete", "F1"…"F12" or arrows ←→↑↓, or else the
     uppercase letter or digit from a fixed key-code table (ANSI layout)
   - examples: "⌥Space", "⌃⌘R"
-  - a key code missing from the table shows as "Key 123"
+  - a key code missing from the table shows as "Key 200" (its number)
 - **Storage:** JSON under UserDefaults key `hotkey`, read and written through
   `HotkeyStore.load(from:) / save(_:to:)`.
 - **Migration:** when `hotkey` is absent, `load` reads the old KeyboardShortcuts value under
@@ -88,8 +88,9 @@ public struct Hotkey: Codable, Equatable, Sendable {
 ### 3.4 Removal
 
 KeyboardShortcuts is removed from `Package.swift`, `Package.resolved`, `Preferences.swift`, `SettingsView.swift`
-and `AppController.swift`. The `missingShortcut` panel logic becomes "the hotkey failed to register at
-launch", with the message "⌥Space is taken by another app. Choose a different shortcut in Settings."
+and `AppController.swift`. If the saved hotkey fails to register at launch, Relay posts a notification: "⌥Space
+is taken by another app. Choose a different shortcut in Relay's Settings." It uses the current hotkey's text.
+(`Assistant.missingShortcut` is about the Shortcuts bridge and is unchanged.)
 
 ## 4. Signing, packaging and the portability check
 
