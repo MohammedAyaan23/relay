@@ -13,7 +13,7 @@ volume and media, handles windows and files, types for you, adds notes, reminder
 
 ## Install
 
-1. Download `Relay-<version>.dmg` from the latest GitHub release and open it.
+1. Download `Relay-<version>.dmg` from the [latest release](https://github.com/MohammedAyaan23/relay/releases) and open it.
 2. Drag **Relay** onto **Applications**, then open Relay from Applications.
 3. macOS says it can't verify the developer, because Relay is free and not signed by Apple. Open
    **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to Relay. This is
@@ -77,3 +77,7 @@ make test    # unit tests
 ```
 
 Releases are described in [RELEASING.md](RELEASING.md).
+
+## License
+
+MIT, see [LICENSE](LICENSE).
