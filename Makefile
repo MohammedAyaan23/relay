@@ -7,7 +7,7 @@ TEST_FLAGS := -Xswiftc -F -Xswiftc $(CLT_DEV)/Frameworks \
 	-Xlinker -rpath -Xlinker $(CLT_DEV)/usr/lib
 endif
 
-.PHONY: build test test-routing test-speech app run
+.PHONY: build test test-routing test-speech app run check-portable
 
 build:
 	swift build
@@ -28,3 +28,6 @@ app:
 
 run: app
 	open build/Relay.app
+
+check-portable: app
+	scripts/check-portable.sh
