@@ -19,6 +19,8 @@ cp "$BIN/Relay" "$APP/Contents/MacOS/Relay"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
 plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$APP/Contents/Info.plist"
+mkdir -p "$APP/Contents/Resources"
+cp Resources/Relay.icns "$APP/Contents/Resources/Relay.icns"
 # Optional signed helper shortcuts (see docs/shortcuts-setup.md).
 if compgen -G "Resources/Shortcuts/*.shortcut" > /dev/null; then
     mkdir -p "$APP/Contents/Resources/Shortcuts"
