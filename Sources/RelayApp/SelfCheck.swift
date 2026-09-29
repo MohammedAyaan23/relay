@@ -16,10 +16,24 @@ enum SelfCheck {
         for step in WelcomeStep.allCases {
             check("welcome-\(step)", WelcomeView(controller: controller, startAt: step))
         }
+        checkClosingWelcomeEndsRecording(controller: controller)
         _ = HotkeyStore.load(from: UserDefaults(suiteName: "relay-self-check")!)
         print("self-check: version \(AppInfo.version ?? "none")")
         print("self-check ok")
         exit(0)
+    }
+
+    /// Closing the welcome window while its recorder waits for keys must turn the hotkey back on.
+    static func checkClosingWelcomeEndsRecording(controller: AppController) {
+        let welcome = WelcomeWindow(controller: controller)
+        welcome.show()
+        HotkeyCenter.shared.beginRecording { _ in }
+        welcome.close()
+        guard !HotkeyCenter.shared.isRecording else {
+            print("self-check FAILED: closing the welcome window left the hotkey recorder on")
+            exit(1)
+        }
+        print("self-check: welcome close ok")
     }
 
     /// Puts the view in an off-screen window and draws it once, which runs its body and its AppKit views.

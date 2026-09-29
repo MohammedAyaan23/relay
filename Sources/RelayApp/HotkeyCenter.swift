@@ -1,3 +1,4 @@
+import AppKit
 import AppSupport
 import Carbon.HIToolbox
 
@@ -11,6 +12,10 @@ final class HotkeyCenter {
     private(set) var current: Hotkey?
     private var ref: EventHotKeyRef?
     private var handler: EventHandlerRef?
+    private var monitor: Any?
+
+    /// True while a recorder is taking the next key press.
+    var isRecording: Bool { monitor != nil }
 
     /// Replaces the hotkey. If the new one can't be registered, the previous one is put back and this returns false.
     @discardableResult
@@ -34,6 +39,24 @@ final class HotkeyCenter {
     /// Listens for the current hotkey again after `suspend()`.
     func resume() {
         if ref == nil, let current { _ = registerRef(current) }
+    }
+
+    /// Turns the hotkey off and sends Relay's next key presses to `handle` instead of their window.
+    func beginRecording(_ handle: @escaping (NSEvent) -> Void) {
+        endRecording()
+        suspend()
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            MainActor.assumeIsolated { handle(event) }
+            return nil
+        }
+    }
+
+    /// Stops recording and turns the hotkey back on. Does nothing if no recording is in progress.
+    func endRecording() {
+        guard let monitor else { return }
+        NSEvent.removeMonitor(monitor)
+        self.monitor = nil
+        resume()
     }
 
     private func registerRef(_ hotkey: Hotkey) -> Bool {

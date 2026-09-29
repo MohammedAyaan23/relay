@@ -7,7 +7,6 @@ struct HotkeyRecorder: View {
     @State private var hotkey = HotkeyStore.load(from: .standard)
     @State private var recording = false
     @State private var note: String?
-    @State private var monitor: Any?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -27,11 +26,7 @@ struct HotkeyRecorder: View {
     private func start() {
         note = "Press a shortcut, or Esc to cancel."
         recording = true
-        HotkeyCenter.shared.suspend()
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            MainActor.assumeIsolated { handle(event) }
-            return nil
-        }
+        HotkeyCenter.shared.beginRecording { handle($0) }
     }
 
     private func handle(_ event: NSEvent) {
@@ -58,9 +53,8 @@ struct HotkeyRecorder: View {
     }
 
     private func stop() {
-        if let monitor { NSEvent.removeMonitor(monitor) }
-        monitor = nil
+        guard recording else { return }
         recording = false
-        HotkeyCenter.shared.resume()
+        HotkeyCenter.shared.endRecording()
     }
 }

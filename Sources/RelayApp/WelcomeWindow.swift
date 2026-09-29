@@ -29,8 +29,16 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
         window?.makeKeyAndOrderFront(nil)
     }
 
+    func close() {
+        window?.close()
+    }
+
     func windowWillClose(_ notification: Notification) {
         WelcomeFlow.markSeen(.standard)
+        // An NSHostingView in a closed window stays alive, so its onDisappear never runs: end any recording
+        // here, and drop the view so its tasks (the permission polling) are cancelled.
+        HotkeyCenter.shared.endRecording()
+        window?.contentView = nil
         // A fresh window (starting at step 1) next time "Welcome…" is chosen.
         window = nil
     }
