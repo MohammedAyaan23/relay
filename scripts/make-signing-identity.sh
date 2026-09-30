@@ -33,12 +33,17 @@ EOF
 /usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -config "$TMP/cert.cnf" \
     -keyout "$TMP/key.pem" -out "$TMP/cert.pem" 2> /dev/null
 
-echo "Choose a password for Relay's signing keychain (you'll type it for each release):"
+echo "Choose a password for Relay's signing keychain. You'll type it for each release, and it can't be"
+echo "recovered, so save it in a password manager now."
 security create-keychain "$KEYCHAIN"
 # Lock again after 5 minutes idle and when the Mac sleeps.
 security set-keychain-settings -l -u -t 300 "$KEYCHAIN"
 security import "$TMP/key.pem" -k "$KEYCHAIN" -t priv -T /usr/bin/codesign > /dev/null
 security import "$TMP/cert.pem" -k "$KEYCHAIN" > /dev/null
+# Let codesign use the key once the keychain is unlocked. Without this, signing fails with
+# errSecInternalComponent. macOS asks for the keychain password (not passed on the command line).
+echo "Enter the same keychain password once more, to let codesign use the key:"
+security set-key-partition-list -S apple-tool:,apple:,codesign: -s "$KEYCHAIN" > /dev/null
 security lock-keychain "$KEYCHAIN"
 
 if ! security find-identity -p codesigning "$KEYCHAIN" | grep -qF "\"$NAME\""; then

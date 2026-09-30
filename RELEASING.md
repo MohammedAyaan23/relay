@@ -8,7 +8,9 @@
    scripts/make-signing-identity.sh
    ```
 
-   It asks you to choose a password for a separate keychain, `relay-signing`, that holds only Relay's key.
+   It asks you to choose a password for a separate keychain, `relay-signing`, that holds only Relay's key,
+   then for the same password once more. **Save the password in a password manager**: it can't be recovered,
+   and without it you can't sign releases.
    That keychain stays locked except while `make release` signs (you type the password then), so no other
    program can sign as Relay. The certificate isn't marked trusted on your Mac; codesign doesn't need it.
    If `codesign` ever asks to use the key, click **Allow**, not "Always Allow".

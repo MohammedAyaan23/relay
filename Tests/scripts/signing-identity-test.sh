@@ -19,7 +19,7 @@ case "$1" in
     import) if [[ "$*" == *" -t priv "* ]]; then touch "$keychain.key"; fi ;;
     find-identity)
         if [ -e "$keychain.key" ]; then echo '  1) ABC "Relay Signing" (CSSMERR_TP_NOT_TRUSTED)'; fi ;;
-    set-keychain-settings|lock-keychain|unlock-keychain|find-certificate) ;;
+    set-keychain-settings|set-key-partition-list|lock-keychain|unlock-keychain|find-certificate) ;;
     *) echo "unexpected: $*" >&2; exit 1 ;;
 esac
 SH
@@ -34,6 +34,9 @@ if output="$(PATH="$FAKE:$PATH" scripts/make-release.sh 2>&1)"; then fail "make-
 PATH="$FAKE:$PATH" scripts/make-signing-identity.sh > /dev/null 2>&1 || fail "setup failed"
 [ -e "$KEYCHAIN" ] || fail "no dedicated keychain created"
 grep -q "^import .* -k $KEYCHAIN -t priv -T /usr/bin/codesign" "$LOG" || fail "the key wasn't imported into the dedicated keychain"
+grep -q "^set-key-partition-list -S apple-tool:,apple:,codesign: -s $KEYCHAIN" "$LOG" \
+    || fail "codesign wasn't given access to the key (errSecInternalComponent when signing)"
+grep -q -- "-k " <(grep "^set-key-partition-list" "$LOG") && fail "the keychain password was passed on the command line"
 grep -q "^lock-keychain $KEYCHAIN" "$LOG" || fail "the keychain was left unlocked"
 grep -qE "^(create-keychain|import|set-).*login.keychain" "$LOG" && fail "the key went into the login keychain"
 grep -q "add-trusted-cert" "$LOG" && fail "the certificate was trusted (not needed)"
