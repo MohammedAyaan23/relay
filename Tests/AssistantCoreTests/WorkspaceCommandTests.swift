@@ -131,6 +131,17 @@ private func match(_ name: String) -> FileMatch {
     #expect(f.assistant.message == "Showed “lease.pdf” in Finder")
 }
 
+// "open <name>" must never launch an app or run a script: those are shown in Finder instead.
+@MainActor @Test func filesThatRunCodeAreRevealedNotOpened() async {
+    for name in ["setup.command", "Installer.app", "helper.sh", "link.webloc"] {
+        let h = Harness(transcript: "open the \(name)", outcome: .intent(.openFile))
+        await h.workspace.setMatches([match(name)])
+        await h.speak()
+        #expect(await h.workspace.calls.last == "reveal(\(name))", "\(name)")
+        #expect(h.assistant.message == "“\(name)” can run code, so I showed it in Finder instead.")
+    }
+}
+
 @MainActor @Test func severalMatchesAreListedAndClearedWhenListeningStarts() async {
     let h = Harness(transcript: "open my tax document", outcome: .intent(.openFile))
     await h.workspace.setMatches([match("tax 2024.pdf"), match("tax 2025.pdf"), match("tax notes.txt")])

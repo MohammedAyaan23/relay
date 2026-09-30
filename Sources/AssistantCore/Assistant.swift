@@ -707,6 +707,11 @@ public final class Assistant {
 
     private func act(on match: FileMatch, _ action: FileMatchAction) async throws -> Outcome {
         switch action {
+        case .open where LaunchableFile.mightRunCode(match.url):
+            // Never launch an app or run a script from a spoken (or misheard) name.
+            try await deps.workspace.reveal(match.url)
+            return Outcome("“\(match.name)” can run code, so I showed it in Finder instead.", .info,
+                           extracted: match.url.path)
         case .open:
             try await deps.workspace.open(match.url)
             return Outcome("Opened “\(match.name)”", .success, extracted: match.url.path)
