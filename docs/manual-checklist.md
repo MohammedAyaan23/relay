@@ -84,3 +84,7 @@ microphone/speech permission again after rebuilding.
 - [ ] With `ReleaseInfo.repository` set to a repo whose latest release is newer: Settings → Check now shows "Update available: v…", and the menu shows "Update available: v…" which opens the release page
 - [ ] Turn off "Check for updates automatically": no check happens on the next launch (Settings → Check now still works)
 - [ ] Settings shows "Relay <version> (build N)" at the bottom
+
+## Security fixes (v0.1.1)
+
+- [ ] Hardened Runtime build: the hotkey records (microphone works), "switch to dark mode" works (Apple events), "make a new folder called x" with Finder in front works, and "keyboard light to 30 percent" works

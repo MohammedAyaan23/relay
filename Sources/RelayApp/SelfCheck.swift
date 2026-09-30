@@ -17,6 +17,13 @@ enum SelfCheck {
             check("welcome-\(step)", WelcomeView(controller: controller, startAt: step))
         }
         checkClosingWelcomeEndsRecording(controller: controller)
+        // The keyboard light's private framework must still load under the Hardened Runtime (read-only check).
+        let coreBrightness = "/System/Library/PrivateFrameworks/CoreBrightness.framework/CoreBrightness"
+        guard dlopen(coreBrightness, RTLD_NOW) != nil, NSClassFromString("KeyboardBrightnessClient") != nil else {
+            print("self-check FAILED: CoreBrightness didn't load")
+            exit(1)
+        }
+        print("self-check: CoreBrightness ok")
         _ = HotkeyStore.load(from: UserDefaults(suiteName: "relay-self-check")!)
         print("self-check: version \(AppInfo.version ?? "none")")
         print("self-check ok")
