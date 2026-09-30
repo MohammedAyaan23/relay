@@ -123,6 +123,23 @@ private let start = Date(timeIntervalSince1970: 1_000_000)
     #expect(pasteboard.string(forType: .string) == "copied meanwhile")
 }
 
+// A password manager's secret (marked concealed) is never put back: a slow app pasting late would otherwise
+// paste the password where the dictated text should go. The clipboard is emptied instead.
+@MainActor @Test func concealedClipboardIsNotRestored() {
+    let pasteboard = NSPasteboard(name: NSPasteboard.Name("relay-test-\(UUID().uuidString)"))
+    defer { pasteboard.releaseGlobally() }
+    pasteboard.clearContents()
+    let secret = NSPasteboardItem()
+    secret.setString("hunter2", forType: .string)
+    secret.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+    pasteboard.writeObjects([secret])
+
+    let saved = PasteboardSwap.snapshot(of: pasteboard)
+    let count = PasteboardSwap.write("dictated text", to: pasteboard)
+    #expect(!PasteboardSwap.restore(saved, to: pasteboard, ifChangeCount: count))
+    #expect(pasteboard.string(forType: .string) == nil)
+}
+
 @Test(arguments: [(600, "10 minutes"), (60, "1 minute"), (5400, "1 hour 30 minutes"), (90, "1 minute 30 seconds"),
                   (45, "45 seconds"), (7200, "2 hours")])
 func durationsReadNaturally(_ seconds: Int, _ expected: String) {
