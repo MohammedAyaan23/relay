@@ -254,3 +254,22 @@ import Testing
     await h.assistant.hotkeyPressed()
     #expect(h.assistant.resultKind == nil)
 }
+
+// The log keeps command phrases (they grow the routing tests) but not what you dictated or said in passing.
+@MainActor @Test func privateSpeechIsNotLogged() async {
+    let cases: [(String, RoutingDecision.Outcome)] = [
+        ("i had a great lunch today", .notACommand),
+        ("type my password is hunter2", .intent(.typeText)),
+        ("note that the doctor called", .intent(.addNote)),
+        ("remind me to call the clinic at 5pm", .intent(.addReminder)),
+    ]
+    for (transcript, outcome) in cases {
+        let h = Harness(transcript: transcript, outcome: outcome)
+        await h.speak()
+        let entry = h.log.all.first
+        #expect(entry?.transcript == "", "\(transcript)")
+        #expect(entry?.extracted == nil, "\(transcript)")
+        #expect(entry?.result == "", "\(transcript)")
+        #expect(entry?.outcome == outcome.logName)
+    }
+}

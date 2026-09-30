@@ -30,8 +30,10 @@ public protocol DecisionLogging: Sendable {
     func append(_ entry: DecisionLogEntry)
 }
 
-/// Appends entries as JSON lines. Write failures are ignored: logging must never break a command.
+/// Appends entries as JSON lines, keeping only the newest `maxEntries`, in a file only the user can read.
+/// Write failures are ignored: logging must never break a command.
 public struct DecisionLog: DecisionLogging {
+    public static let maxEntries = 500
     public let fileURL: URL
 
     public init(fileURL: URL) {
@@ -50,14 +52,22 @@ public struct DecisionLog: DecisionLogging {
         guard var line = try? encoder.encode(entry) else { return }
         line.append(0x0A)
         let fileManager = FileManager.default
-        try? fileManager.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if !fileManager.fileExists(atPath: fileURL.path) {
-            fileManager.createFile(atPath: fileURL.path, contents: line)
-            return
+        let folder = fileURL.deletingLastPathComponent()
+        try? fileManager.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try? fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
+        var contents = (try? Data(contentsOf: fileURL)) ?? Data()
+        contents.append(line)
+        let lines = contents.split(separator: 0x0A, omittingEmptySubsequences: true)
+        if lines.count > Self.maxEntries {
+            contents = Data(lines.suffix(Self.maxEntries).joined(separator: [0x0A])) + [0x0A]
         }
-        guard let handle = try? FileHandle(forWritingTo: fileURL) else { return }
-        defer { try? handle.close() }
-        _ = try? handle.seekToEnd()
-        try? handle.write(contentsOf: line)
+        try? contents.write(to: fileURL, options: .atomic)
+        // Also tightens a log written by an older Relay with default (world-readable) permissions.
+        try? fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
+    }
+
+    /// Deletes the history (Settings → Clear command history).
+    public func clear() {
+        try? FileManager.default.removeItem(at: fileURL)
     }
 }

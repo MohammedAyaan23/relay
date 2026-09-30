@@ -223,11 +223,18 @@ public final class Assistant {
             result = await perform(intent, text)
         }
 
+        // Command phrases are kept (they grow the routing tests); speech that wasn't a command and anything
+        // dictated (typing, notes, reminders) is not written down.
+        let isPrivate = switch decision.outcome {
+        case .notACommand: true
+        case .intent(let intent): [.typeText, .addNote, .addReminder].contains(intent)
+        case .ambiguous: false
+        }
         deps.log.append(DecisionLogEntry(
-            timestamp: Date(), transcript: text, gateProbability: decision.gateProbability,
+            timestamp: Date(), transcript: isPrivate ? "" : text, gateProbability: decision.gateProbability,
             choiceProbabilities: Dictionary(uniqueKeysWithValues: decision.choiceProbabilities.map { ($0.key.rawValue, $0.value) }),
-            outcome: decision.outcome.logName, extracted: result.extracted,
-            stateWasTruncated: decision.stateWasTruncated, result: result.message))
+            outcome: decision.outcome.logName, extracted: isPrivate ? nil : result.extracted,
+            stateWasTruncated: decision.stateWasTruncated, result: isPrivate ? "" : result.message))
         finish(result.message, result.kind)
     }
 

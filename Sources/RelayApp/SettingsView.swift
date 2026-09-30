@@ -1,3 +1,4 @@
+import AssistantCore
 import SwiftUI
 
 struct SettingsView: View {
@@ -6,6 +7,7 @@ struct SettingsView: View {
     @AppStorage(Preferences.gateThreshold) private var gate = 0.5
     @AppStorage(Preferences.choiceThreshold) private var choice = 0.35
     @AppStorage(Preferences.checkForUpdates) private var checkForUpdates = true
+    @State private var historyCleared = false
 
     var body: some View {
         Form {
@@ -20,6 +22,17 @@ struct SettingsView: View {
             Slider(value: $choice, in: 0.05...0.95) {
                 Text("Action choice: \(choice, format: .number.precision(.fractionLength(2)))")
             }
+            HStack {
+                Button("Clear command history") {
+                    DecisionLog(fileURL: DecisionLog.defaultFileURL).clear()
+                    historyCleared = true
+                }
+                if historyCleared { Text("Cleared").foregroundStyle(.secondary) }
+            }
+            Text("Relay keeps your last 500 command phrases on this Mac to improve routing. It never keeps "
+                + "dictated text, notes, reminders or speech that wasn't a command.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             if controller.updates.isConfigured {
                 Toggle("Check for updates automatically", isOn: $checkForUpdates)
                 HStack {

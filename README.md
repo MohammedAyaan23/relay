@@ -31,6 +31,13 @@ volume and media, handles windows and files, types for you, adds notes, reminder
 | Screen Recording | screenshots | first screenshot |
 | Reminders | adding reminders | first reminder |
 
+## Privacy
+
+Speech is recognised on your Mac and audio is never uploaded. Relay keeps its last 500 command phrases in
+`~/Library/Application Support/Relay/decisions.jsonl` (readable only by you) to improve routing; it never keeps
+dictated text, notes, reminders, or speech that wasn't a command. Settings → **Clear command history**
+deletes it. Web searches go to Google in your browser, and "tell Claude…" requests go to Claude Code.
+
 ## Updating
 
 Relay checks GitHub once a day and shows **Update available** in its menu when a new version is out (turn
