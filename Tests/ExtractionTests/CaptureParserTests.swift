@@ -154,3 +154,15 @@ func timerTargets(_ transcript: String, _ expected: TimerTarget) {
 func fractionalTimerDurations(_ transcript: String, _ seconds: Int) {
     #expect(TimerParser.parse(transcript).seconds == seconds)
 }
+
+// Absurd durations must be refused, not crash Relay (Int overflow traps).
+@Test func hugeTimerDurationsAreRefused() {
+    #expect(TimerParser.parse("set a timer for 99999999999999999999 weeks").seconds == nil)
+    #expect(TimerParser.parse("set a timer for one quintillion weeks").seconds == nil)
+    #expect(TimerParser.parse("set a timer for 9 minutes").seconds == 540)
+}
+
+@Test func hugeReminderDelaysAreRefused() {
+    let request = ReminderParser.parse("remind me in 99999999999999999999 weeks to stretch", now: now, calendar: calendar)
+    #expect(request.due == nil)
+}

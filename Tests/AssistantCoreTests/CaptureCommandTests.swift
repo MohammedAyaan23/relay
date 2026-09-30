@@ -208,3 +208,9 @@ private func timer(_ name: String?, in seconds: TimeInterval) -> RelayTimer {
     #expect(CaptureFormat.reminderTime(at(4, 9), now: now, calendar: calendar) == "Fri 9:00 AM")
     #expect(CaptureFormat.reminderTime(at(10, 9), now: now, calendar: calendar) == "Oct 8 9:00 AM")
 }
+
+// A timers.json edited to hold an absurd end date must not crash "how long is left".
+@Test func absurdTimerEndDoesNotCrash() {
+    let timer = RelayTimer(id: UUID(), name: "odd", endsAt: Date(timeIntervalSinceReferenceDate: 1e300))
+    #expect(CaptureFormat.remaining([timer], now: Date()).hasSuffix("left"))
+}

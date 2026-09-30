@@ -16,7 +16,10 @@ public enum CaptureFormat {
     /// One timer: "7 minutes 12 seconds left". Several: "Pasta: 3 min left · Tea: <1 min left".
     public static func remaining(_ timers: [RelayTimer], now: Date) -> String {
         guard !timers.isEmpty else { return "No timers running" }
-        func secondsLeft(_ timer: RelayTimer) -> Int { max(0, Int(timer.endsAt.timeIntervalSince(now).rounded(.up))) }
+        func secondsLeft(_ timer: RelayTimer) -> Int {
+            // Clamped before converting: an absurd date in timers.json would otherwise overflow Int.
+            Int(min(max(timer.endsAt.timeIntervalSince(now).rounded(.up), 0), 100 * 365 * 86_400))
+        }
         if timers.count == 1 { return "\(duration(secondsLeft(timers[0]))) left" }
         return timers.map { timer in
             let seconds = secondsLeft(timer)

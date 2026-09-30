@@ -26,21 +26,23 @@ public enum TimerParser {
                                              "cancel", "stop", "delete", "clear", "remove", "on", "left", "is",
                                              "how", "long", "much", "time", "all", "every", "of", "and", "half"]
 
+    static let maxSeconds = 10.0 * 365 * 86_400
+
     public static func parse(_ transcript: String) -> TimerRequest {
         let words = tokens(transcript)
-        var seconds = 0
+        var seconds = 0.0 // added up as Double so absurd spoken numbers can't overflow Int
         var found = false
         for (i, word) in words.enumerated() {
             guard let unit = units[word] else { continue }
             if i >= 2, words[i - 2] == "half", words[i - 1] == "an" || words[i - 1] == "a" {
-                seconds += unit / 2
+                seconds += Double(unit / 2)
                 found = true
             } else if let amount = amount(before: i, in: words) {
-                seconds += Int((amount * Double(unit)).rounded())
+                seconds += (amount * Double(unit)).rounded()
                 found = true
             }
             if i + 3 < words.count, words[i + 1] == "and", words[i + 2] == "a", words[i + 3] == "half" {
-                seconds += unit / 2
+                seconds += Double(unit / 2)
             }
         }
         if !found, words.contains("pomodoro") {
@@ -49,7 +51,9 @@ public enum TimerParser {
         }
         var name = nameBeforeTimer(words)
         if name == nil, words.contains("pomodoro") { name = "pomodoro" }
-        return TimerRequest(seconds: found ? seconds : nil, name: name)
+        // Anything over 10 years is a misheard number, not a real timer or reminder.
+        let valid = found && seconds.isFinite && seconds >= 0 && seconds <= maxSeconds
+        return TimerRequest(seconds: valid ? Int(seconds) : nil, name: name)
     }
 
     public static func target(_ transcript: String) -> TimerTarget {

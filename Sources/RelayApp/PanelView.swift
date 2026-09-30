@@ -236,7 +236,7 @@ struct TimersView: View {
 
     /// "8:59", or "1:05:00" for timers over an hour.
     static func clock(_ remaining: TimeInterval) -> String {
-        let seconds = max(0, Int(remaining.rounded(.up)))
+        let seconds = Int(min(max(remaining.rounded(.up), 0), 100 * 365 * 86_400)) // clamped: can't overflow Int
         return seconds >= 3600
             ? String(format: "%d:%02d:%02d", seconds / 3600, (seconds % 3600) / 60, seconds % 60)
             : String(format: "%d:%02d", seconds / 60, seconds % 60)
