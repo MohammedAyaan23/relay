@@ -1,3 +1,4 @@
+import Foundation
 import FluidUse
 
 /// Routes transcripts with Laya: a yes/no "is this a command?" gate, then a choice between intents.
@@ -25,9 +26,12 @@ public actor LayaRouter: IntentRouting {
     public func prepare(progress: @escaping @Sendable (String) -> Void) async throws {
         guard manager == nil else { return }
         progress("Loading the Laya model (the first run downloads about 640 MB)…")
-        manager = try await LayaManager.load(
-            configuration: .init(lengths: [128]),
-            progress: { file, bytes in progress("Downloading \(file): \(bytes / 1_000_000) MB") })
+        // Relay fetches the files itself from a pinned commit and checks their hashes, then loads them locally.
+        let folder = LayaModelStore.defaultCacheDirectory().appendingPathComponent("laya-coreml", isDirectory: true)
+        try await LayaModelFiles.ensureVerified(in: folder, progress: { file in
+            progress("Downloading the Laya model (\((file as NSString).lastPathComponent))…")
+        })
+        manager = try await LayaManager.load(from: folder, configuration: .init(lengths: [128]))
     }
 
     public func setThresholds(_ thresholds: RoutingThresholds) {
