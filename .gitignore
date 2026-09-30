@@ -9,3 +9,10 @@ build/
 
 # Plan execution workspace
 .superpowers/
+
+# Signing keys and certificates must never be committed
+*.p12
+*.pem
+*.cer
+*.keychain
+*.keychain-db

@@ -2,15 +2,17 @@
 # Builds a signed, portability-checked Relay DMG for GitHub Releases. See RELEASING.md.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-NAME="Relay Self-Signed"
+NAME="Relay Signing"
+KEYCHAIN="$HOME/Library/Keychains/relay-signing.keychain-db"
 IDENTITY="${RELAY_SIGN_IDENTITY:-$NAME}"
 SUFFIX=""
 
 if [ "$IDENTITY" = "-" ]; then
     echo "WARNING: ad-hoc signed test build. Permissions won't survive updates; don't publish this DMG." >&2
     SUFFIX="-adhoc"
-elif ! security find-identity -v -p codesigning | grep -qF "\"$IDENTITY\""; then
-    echo "No \"$IDENTITY\" code-signing certificate. Run scripts/make-signing-identity.sh first." >&2
+    KEYCHAIN=""
+elif [ ! -e "$KEYCHAIN" ] || ! security find-identity -p codesigning "$KEYCHAIN" | grep -qF "\"$IDENTITY\""; then
+    echo "No \"$IDENTITY\" key in $KEYCHAIN. Run scripts/make-signing-identity.sh first." >&2
     exit 1
 fi
 
@@ -25,7 +27,27 @@ if [ -e "$DMG" ]; then
     exit 1
 fi
 
-RELAY_VERSION="$VERSION" RELAY_SIGN_IDENTITY="$IDENTITY" scripts/make-app.sh
+if [ -n "$KEYCHAIN" ]; then
+    # Unlock the signing keychain only for the build, and put it on the search list (codesign needs that),
+    # then lock it and restore the search list whatever happens.
+    ORIGINAL_KEYCHAINS=()
+    while IFS= read -r line; do
+        line="${line#"${line%%[![:space:]]*}"}"; line="${line%\"}"; ORIGINAL_KEYCHAINS+=("${line#\"}")
+    done < <(security list-keychains -d user)
+    relock() {
+        security list-keychains -d user -s "${ORIGINAL_KEYCHAINS[@]}"
+        security lock-keychain "$KEYCHAIN"
+    }
+    trap relock EXIT
+    echo "Enter the password for Relay's signing keychain:"
+    security unlock-keychain "$KEYCHAIN"
+    security list-keychains -d user -s "${ORIGINAL_KEYCHAINS[@]}" "$KEYCHAIN"
+fi
+RELAY_VERSION="$VERSION" RELAY_SIGN_IDENTITY="$IDENTITY" RELAY_SIGN_KEYCHAIN="$KEYCHAIN" scripts/make-app.sh
+if [ -n "$KEYCHAIN" ]; then
+    relock
+    trap - EXIT
+fi
 scripts/check-portable.sh build/Relay.app
 
 STAGE="$(mktemp -d)"

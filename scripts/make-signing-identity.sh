@@ -1,24 +1,24 @@
 #!/bin/bash
-# One-time setup: creates the free "Relay Self-Signed" code-signing certificate in your login keychain.
-# Every release signed with it keeps users' permissions across updates. Back it up (see RELEASING.md).
+# One-time setup: creates Relay's free self-made code-signing key in its own keychain, protected by a
+# password you choose. The keychain stays locked except while `make release` signs, so no other program
+# can sign as Relay. Every release signed with it keeps users' permissions across updates.
+# The certificate is never marked trusted on this Mac: codesign doesn't need that. Back it up (RELEASING.md).
 set -euo pipefail
-NAME="Relay Self-Signed"
-KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
+NAME="Relay Signing"
+KEYCHAIN="$HOME/Library/Keychains/relay-signing.keychain-db"
 
-if security find-identity -v -p codesigning | grep -qF "\"$NAME\""; then
-    echo "Already set up: $NAME"
-    exit 0
+if [ -e "$KEYCHAIN" ]; then
+    if security find-identity -p codesigning "$KEYCHAIN" | grep -qF "\"$NAME\""; then
+        echo "Already set up: \"$NAME\" in $KEYCHAIN"
+        exit 0
+    fi
+    echo "$KEYCHAIN exists but has no \"$NAME\" key. Check it in Keychain Access before running this again." >&2
+    exit 1
 fi
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-
-if security find-certificate -c "$NAME" "$KEYCHAIN" > /dev/null 2>&1; then
-    # An earlier run imported it but the trust step didn't finish (e.g. the password dialog was cancelled).
-    echo "Found \"$NAME\" in your keychain; finishing its setup."
-    security find-certificate -c "$NAME" -p "$KEYCHAIN" > "$TMP/cert.pem"
-else
-    cat > "$TMP/cert.cnf" <<EOF
+cat > "$TMP/cert.cnf" <<EOF
 [req]
 distinguished_name = dn
 x509_extensions = ext
@@ -30,22 +30,26 @@ basicConstraints = critical, CA:false
 keyUsage = critical, digitalSignature
 extendedKeyUsage = critical, codeSigning
 EOF
+/usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -config "$TMP/cert.cnf" \
+    -keyout "$TMP/key.pem" -out "$TMP/cert.pem" 2> /dev/null
 
-    # macOS's own LibreSSL writes a PKCS#12 file that `security import` accepts.
-    /usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -config "$TMP/cert.cnf" \
-        -keyout "$TMP/key.pem" -out "$TMP/cert.pem" 2> /dev/null
-    PASS="$(/usr/bin/openssl rand -hex 16)"
-    /usr/bin/openssl pkcs12 -export -inkey "$TMP/key.pem" -in "$TMP/cert.pem" -name "$NAME" \
-        -out "$TMP/relay.p12" -passout "pass:$PASS"
-    security import "$TMP/relay.p12" -k "$KEYCHAIN" -P "$PASS" -T /usr/bin/codesign
-fi
+echo "Choose a password for Relay's signing keychain (you'll type it for each release):"
+security create-keychain "$KEYCHAIN"
+# Lock again after 5 minutes idle and when the Mac sleeps.
+security set-keychain-settings -l -u -t 300 "$KEYCHAIN"
+security import "$TMP/key.pem" -k "$KEYCHAIN" -t priv -T /usr/bin/codesign > /dev/null
+security import "$TMP/cert.pem" -k "$KEYCHAIN" > /dev/null
+security lock-keychain "$KEYCHAIN"
 
-echo "macOS will now ask for your password to trust the certificate for code signing."
-security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$TMP/cert.pem"
-
-if security find-identity -v -p codesigning | grep -qF "\"$NAME\""; then
-    echo "Ready: \"$NAME\" can sign Relay."
-else
-    echo "\"$NAME\" still isn't a valid code-signing identity. Run this script again, or check it in Keychain Access." >&2
+if ! security find-identity -p codesigning "$KEYCHAIN" | grep -qF "\"$NAME\""; then
+    echo "\"$NAME\" wasn't created properly. Check $KEYCHAIN in Keychain Access." >&2
     exit 1
+fi
+echo "Ready: \"$NAME\" is in $KEYCHAIN (locked). Back it up as RELEASING.md describes."
+
+if security find-certificate -c "Relay Self-Signed" "$HOME/Library/Keychains/login.keychain-db" > /dev/null 2>&1; then
+    echo
+    echo "The old \"Relay Self-Signed\" key is still in your login keychain, where any program can sign with it."
+    echo "Once you no longer need it, remove it and its trust setting with:"
+    echo "  security delete-identity -c \"Relay Self-Signed\" -t ~/Library/Keychains/login.keychain-db"
 fi

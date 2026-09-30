@@ -28,6 +28,9 @@ if compgen -G "Resources/Shortcuts/*.shortcut" > /dev/null; then
 fi
 # Hardened Runtime: macOS then refuses injected libraries and debuggers, so no other program can borrow
 # Relay's permissions. The entitlements allow only the microphone and Apple events.
-codesign --force --options runtime --entitlements Resources/Relay.entitlements --sign "$IDENTITY" "$APP"
+KEYCHAIN_ARGS=()
+if [ -n "${RELAY_SIGN_KEYCHAIN:-}" ]; then KEYCHAIN_ARGS=(--keychain "$RELAY_SIGN_KEYCHAIN"); fi
+codesign --force --options runtime --entitlements Resources/Relay.entitlements ${KEYCHAIN_ARGS[@]+"${KEYCHAIN_ARGS[@]}"} \
+    --sign "$IDENTITY" "$APP"
 codesign --verify --strict "$APP"
 echo "Built $APP ($VERSION, build $BUILD_NUMBER)"
