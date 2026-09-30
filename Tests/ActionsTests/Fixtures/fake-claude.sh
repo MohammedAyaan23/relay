@@ -1,9 +1,10 @@
 #!/bin/sh
 # Stand-in for the claude CLI in tests. Records its arguments in ./args.txt (the working
-# directory is the project folder), then behaves according to the prompt (the argument after -p).
+# directory is the project folder), then behaves according to the prompt (the last argument, after --).
 here=$(cd "$(dirname "$0")" && pwd)
 printf '%s\n' "$@" > args.txt
-case "$2" in
+for prompt in "$@"; do :; done
+case "$prompt" in
   ok)
     cat "$here/stream-success.jsonl" ;;
   denied)
@@ -22,6 +23,6 @@ case "$2" in
     sleep 30 &
     wait ;;
   *)
-    echo "unknown test prompt: $2" >&2
+    echo "unknown test prompt: $prompt" >&2
     exit 64 ;;
 esac

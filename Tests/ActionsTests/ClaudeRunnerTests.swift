@@ -31,8 +31,27 @@ private func collect(_ stream: AsyncStream<ClaudeEvent>) async -> [ClaudeEvent] 
 @Test func firstRunHasNoResumeFlag() async throws {
     let s = try Setup()
     #expect(await s.runner.arguments(prompt: "hi", project: s.project) == [
-        "-p", "hi", "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits",
+        "-p", "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits",
+        "--tools", "Read,Grep,Glob,Edit,Write", "--setting-sources", "user", "--strict-mcp-config", "--", "hi",
     ])
+}
+
+// Claude may read and edit files in the project, but gets no shell (acceptEdits would auto-approve rm/mv),
+// and the project's own settings, hooks and MCP servers are ignored.
+@Test func claudeGetsNoShellAndIgnoresProjectSettings() async throws {
+    let s = try Setup()
+    let args = await s.runner.arguments(prompt: "hi", project: s.project)
+    let tools = args[args.firstIndex(of: "--tools")! + 1]
+    #expect(!tools.contains("Bash"))
+    #expect(args[args.firstIndex(of: "--setting-sources")! + 1] == "user")
+    #expect(args.contains("--strict-mcp-config"))
+}
+
+// A prompt that starts with "-" must stay the prompt, not become an option.
+@Test func promptComesAfterDoubleDash() async throws {
+    let s = try Setup()
+    let args = await s.runner.arguments(prompt: "--dangerously-skip-permissions", project: s.project)
+    #expect(Array(args.suffix(2)) == ["--", "--dangerously-skip-permissions"])
 }
 
 @Test func successfulRunStoresTheSessionAndTheNextRunResumesIt() async throws {
@@ -45,7 +64,7 @@ private func collect(_ stream: AsyncStream<ClaudeEvent>) async -> [ClaudeEvent] 
 
     _ = await collect(try await s.runner.run(prompt: "ok", project: s.project))
     let args = try s.recordedArguments()
-    #expect(Array(args.suffix(2)) == ["--resume", session])
+    #expect(args.firstIndex(of: "--resume").map { args[$0 + 1] } == session)
 }
 
 @Test func secondJobWhileRunningIsRefusedAndStopEndsTheFirst() async throws {

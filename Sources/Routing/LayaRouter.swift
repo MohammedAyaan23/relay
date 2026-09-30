@@ -57,7 +57,7 @@ public actor LayaRouter: IntentRouting {
         }
         return RoutingDecision(
             outcome: RoutingPolicy.outcome(
-                gateProbability: gateProbability, choiceProbabilities: probabilities, thresholds: thresholds),
+                transcript: transcript, gateProbability: gateProbability, choiceProbabilities: probabilities, thresholds: thresholds),
             gateProbability: gateProbability,
             choiceProbabilities: probabilities,
             stateWasTruncated: truncated)

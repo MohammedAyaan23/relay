@@ -26,9 +26,14 @@ public actor ClaudeRunner: ClaudeJobRunning {
     public var isRunning: Bool { process != nil }
 
     public func arguments(prompt: String, project: URL) -> [String] {
-        var arguments = ["-p", prompt, "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits"]
+        // Claude may read and edit files in the project, but gets no shell: acceptEdits also auto-approves
+        // commands like rm and mv. The project's own settings, hooks and MCP servers are ignored, since -p
+        // skips Claude Code's "trust this folder" prompt.
+        var arguments = ["-p", "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits",
+                         "--tools", "Read,Grep,Glob,Edit,Write", "--setting-sources", "user", "--strict-mcp-config"]
         if let id = sessions.sessionID(for: project) { arguments += ["--resume", id] }
-        return arguments
+        // After "--", a prompt starting with "-" can't be read as an option.
+        return arguments + ["--", prompt]
     }
 
     public func clearSession(for project: URL) throws {
