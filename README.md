@@ -8,7 +8,7 @@ volume and media, handles windows and files, types for you, adds notes, reminder
 ## Requirements
 
 - A Mac with Apple Silicon and macOS 26 or later
-- About 700 MB free for the speech-routing model, downloaded once on first launch
+- About 500 MB free for the speech-routing model, downloaded once on first launch
 - Optional: Claude Code, for "tell Claude to…" commands
 
 ## Install

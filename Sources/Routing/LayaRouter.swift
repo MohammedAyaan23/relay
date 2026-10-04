@@ -25,13 +25,13 @@ public actor LayaRouter: IntentRouting {
 
     public func prepare(progress: @escaping @Sendable (String) -> Void) async throws {
         guard manager == nil else { return }
-        progress("Loading the Laya model (the first run downloads about 640 MB)…")
+        progress("Loading the Laya model (the first run downloads about 480 MB)…")
         // Relay fetches the files itself from a pinned commit and checks their hashes, then loads them locally.
         let folder = LayaModelStore.defaultCacheDirectory().appendingPathComponent("laya-coreml", isDirectory: true)
         try await LayaModelFiles.ensureVerified(in: folder, progress: { file in
             progress("Downloading the Laya model (\((file as NSString).lastPathComponent))…")
         })
-        manager = try await LayaManager.load(from: folder, configuration: .init(lengths: [128]))
+        manager = try await LayaManager.load(from: folder, configuration: .init(lengths: [128], precision: LayaModelFiles.precision))
     }
 
     public func setThresholds(_ thresholds: RoutingThresholds) {

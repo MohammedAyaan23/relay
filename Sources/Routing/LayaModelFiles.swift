@@ -21,15 +21,17 @@ public enum LayaModelFiles {
 
     public static let repository = "FluidInference/laya-coreml"
     public static let revision = "7b8d7a2b7e28e746c6ecaad44bbcd5cf251a4fcc"
-    static let bundle = "laya_multilingual_fp16_L128_options32.mlmodelc"
+    /// The "e8" weights: fp16 encoder with an int8 embedding table, 30% smaller than fp16 with the same parity gates.
+    static let precision = "e8"
+    static let bundle = "laya_multilingual_e8_L128_options32.mlmodelc"
     public static let files = [
         File(path: "tokenizer.json", sha256: "609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f"),
         File(path: "\(bundle)/analytics/coremldata.bin",
-             sha256: "45a65377bd86ce1d8d65e1066df7dbb8df43d63b473a94dc3945498908e88183"),
-        File(path: "\(bundle)/coremldata.bin", sha256: "1a83b587eb200359c041103da261eca89a9b04eda586f41958143479bc975824"),
-        File(path: "\(bundle)/model.mil", sha256: "0fbc069ce5b66d0f2a28387c90116c30f95f8555600ccf46d612590edf646e49"),
+             sha256: "5cabcada4e3adc09e026c4b37a48d71e828bb3f80d12de0356b3369375ba1da6"),
+        File(path: "\(bundle)/coremldata.bin", sha256: "4fb10774cd0860881220a37c80b416f465e3a9b5636f83c740647bafc14fbce5"),
+        File(path: "\(bundle)/model.mil", sha256: "bcdb6102dacea9581875b3e8bc0f05e0b568d437bc20a8cf35b11f06edfa919a"),
         File(path: "\(bundle)/weights/weight.bin",
-             sha256: "506eb53e74aaebcdfb3f55304fbdd0b9c1678026efaef60454a1c66557f35d90"),
+             sha256: "ca1e5da71f1498eac7b68722c9f5c3d43d1ce299aaf0c29743585749f3cc9677"),
     ]
 
     public typealias Fetch = @Sendable (URL) async throws -> URL
@@ -73,7 +75,7 @@ public enum LayaModelFiles {
         return kept
     }
 
-    /// SHA-256 of a file, read in 4 MB chunks so the 640 MB weights never sit in memory at once.
+    /// SHA-256 of a file, read in 4 MB chunks so the ~450 MB weights never sit in memory at once.
     static func hash(of url: URL) throws -> String {
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
