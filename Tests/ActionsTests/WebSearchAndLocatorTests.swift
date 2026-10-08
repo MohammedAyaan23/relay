@@ -19,6 +19,28 @@ import Testing
 }
 
 @Test func blankOverrideFallsBackToTheShellLookup() {
-    #expect(ClaudeLocator.locate(override: "  ", shellLookup: { "/bin/sh\n" })?.path == "/bin/sh")
-    #expect(ClaudeLocator.locate(override: nil, shellLookup: { nil }) == nil)
+    #expect(ClaudeLocator.locate(override: "  ", knownLocations: [], shellLookup: { "/bin/sh\n" })?.path == "/bin/sh")
+    #expect(ClaudeLocator.locate(override: nil, knownLocations: [], shellLookup: { nil }) == nil)
+}
+
+// A standard install location is used directly, without starting a login shell.
+@Test func knownInstallLocationsAreCheckedBeforeTheShell() {
+    let found = ClaudeLocator.locate(override: nil, knownLocations: ["/nonexistent/claude", "/bin/sh"],
+                                     shellLookup: { Issue.record("the shell shouldn't run"); return nil })
+    #expect(found?.path == "/bin/sh")
+}
+
+// A login shell that hangs can't freeze Relay: the lookup gives up after its timeout.
+@Test func shellLookupGivesUpOnAHangingShell() {
+    let start = ContinuousClock.now
+    #expect(ClaudeLocator.run("/bin/sh", ["-c", "sleep 30"], timeout: .milliseconds(300)) == nil)
+    #expect(ContinuousClock.now - start < .seconds(2))
+}
+
+// A startup file that leaves a background process holding the output open doesn't block the result.
+@Test func shellLookupReturnsEvenIfABackgroundProcessKeepsTheOutputOpen() {
+    let start = ContinuousClock.now
+    #expect(ClaudeLocator.run("/bin/sh", ["-c", "sleep 30 & echo /usr/local/bin/claude"], timeout: .seconds(3))
+        == "/usr/local/bin/claude")
+    #expect(ContinuousClock.now - start < .seconds(2))
 }
