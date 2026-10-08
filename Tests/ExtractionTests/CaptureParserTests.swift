@@ -15,6 +15,15 @@ func dictationKeepsWordingAndPunctuation(_ transcript: String, _ expected: Strin
     #expect(DictationParser.text(from: transcript) == expected)
 }
 
+// Dictated text is pasted as one line: a line break would run a command in a terminal, and control
+// characters (escape sequences, tabs) could act as keys. Line breaks and tabs become spaces; others go.
+@Test func dictationIsPastedAsOneLineWithoutControlCharacters() {
+    #expect(DictationParser.text(from: "type ls\nrm -rf ~\r\n") == "ls rm -rf ~")
+    #expect(DictationParser.text(from: "type a\tb\u{1B}[Ac\u{0007}") == "a b[Ac")
+    #expect(DictationParser.text(from: "type line one\u{2028}line two") == "line one line two")
+    #expect(DictationParser.text(from: "type family 👨\u{200D}👩\u{200D}👧") == "family 👨\u{200D}👩\u{200D}👧") // emoji joiners stay
+}
+
 @Test func emptyDictationIsNil() {
     #expect(DictationParser.text(from: "type") == nil)
     #expect(DictationParser.text(from: "write:") == nil)
