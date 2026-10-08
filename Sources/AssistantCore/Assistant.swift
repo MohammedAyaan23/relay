@@ -434,7 +434,13 @@ public final class Assistant {
         case .quitApp, .hideApp:
             let quitting = intent == .quitApp
             return await control(quitting ? "quit" : "hide") {
-                let name = try await self.resolveApp(AppTargetParser.parse(text))
+                var target = AppTargetParser.parse(text)
+                if target == .unspecified {
+                    // Quitting is the one that can lose work, so a bare "quit" asks rather than guessing.
+                    if quitting { return Outcome("Quit which app? Say its name, or “quit this app”.", .info) }
+                    target = .frontmost
+                }
+                let name = try await self.resolveApp(target)
                 if quitting {
                     try await self.deps.workspace.quit(appNamed: name)
                 } else {
@@ -743,7 +749,7 @@ public final class Assistant {
 
     private func resolveApp(_ target: AppTarget) async throws -> String {
         switch target {
-        case .frontmost:
+        case .frontmost, .unspecified:
             guard let name = await deps.workspace.frontmostAppName() else { throw SystemControlError.noFrontWindow }
             return name
         case .named(let spoken):

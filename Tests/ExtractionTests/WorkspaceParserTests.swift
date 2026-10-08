@@ -6,8 +6,14 @@ import Testing
     ("close spotify completely", .named("spotify")),
     ("quit visual studio code please", .named("visual studio code")),
     ("hide this app", .frontmost),
-    ("hide", .frontmost),
     ("quit this window", .frontmost),
+    ("quit it", .frontmost),
+    ("quit the app", .frontmost),
+    // A bare verb names no app, so it might be a misheard word, not a request to quit what's in front.
+    ("quit", .unspecified),
+    ("exit", .unspecified),
+    ("close completely", .unspecified),
+    ("hide", .unspecified),
 ])
 func appTargets(_ transcript: String, _ expected: AppTarget) {
     #expect(AppTargetParser.parse(transcript) == expected)

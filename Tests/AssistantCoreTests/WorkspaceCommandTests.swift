@@ -115,6 +115,18 @@ private func match(_ name: String) -> FileMatch {
     #expect(h.assistant.message == "Couldn't create “invoices”: disk full")
 }
 
+// A bare "quit" asks which app instead of quitting whatever is in front; a bare "hide" still hides it.
+@MainActor @Test func bareQuitAsksInsteadOfQuittingTheFrontApp() async {
+    let q = Harness(transcript: "quit", outcome: .intent(.quitApp))
+    await q.speak()
+    #expect(await q.workspace.calls.isEmpty)
+    #expect(q.assistant.message == "Quit which app? Say its name, or “quit this app”.")
+
+    let h = Harness(transcript: "hide", outcome: .intent(.hideApp))
+    await h.speak()
+    #expect(await h.workspace.calls.contains("hide(Safari)"))
+}
+
 // MARK: Finding and opening
 
 @MainActor @Test func oneMatchIsOpenedOrRevealed() async {
