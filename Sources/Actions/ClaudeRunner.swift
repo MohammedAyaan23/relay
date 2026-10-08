@@ -24,6 +24,8 @@ public actor ClaudeRunner: ClaudeJobRunning {
     }
 
     public var isRunning: Bool { process != nil }
+    /// The running claude process's ID (for tests).
+    var processID: Int32? { process?.processIdentifier }
 
     public func arguments(prompt: String, project: URL) -> [String] {
         // Claude may read and edit files in the project, but gets no shell: acceptEdits also auto-approves
@@ -99,14 +101,27 @@ public actor ClaudeRunner: ClaudeJobRunning {
     }
 
     /// Interrupts the running job (like Ctrl-C), then terminates it if it's still alive after 3 seconds.
-    public func stop() {
+    public func stop() async {
+        await stop(grace: .seconds(3))
+    }
+
+    /// Returns only once claude has exited (or after a final 2 s), so quitting Relay can't leave it running:
+    /// a Task scheduled to terminate it later would die with Relay.
+    func stop(grace: Duration) async {
         guard let process, process.isRunning else { return }
         stopRequested = true
         process.interrupt()
-        Task {
-            try? await Task.sleep(for: .seconds(3))
-            if process.isRunning { process.terminate() }
+        if await Self.waitForExit(process, upTo: grace) { return }
+        process.terminate()
+        _ = await Self.waitForExit(process, upTo: .seconds(2))
+    }
+
+    private static func waitForExit(_ process: Process, upTo limit: Duration) async -> Bool {
+        let deadline = ContinuousClock.now + limit
+        while process.isRunning, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(50))
         }
+        return !process.isRunning
     }
 
     static func tail(_ text: String, lines: Int) -> String {

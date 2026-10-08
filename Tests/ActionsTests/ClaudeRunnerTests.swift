@@ -118,3 +118,15 @@ private func collect(_ stream: AsyncStream<ClaudeEvent>) async -> [ClaudeEvent] 
     #expect(events.last == .stopped)
     #expect(await s.runner.isRunning == false)
 }
+
+// Quitting Relay must not leave Claude running: stop() waits for it to exit, terminating it if it ignores Ctrl-C.
+@Test func stopWaitsUntilAStubbornJobHasExited() async throws {
+    let s = try Setup()
+    let stream = try await s.runner.run(prompt: "stubborn", project: s.project)
+    let pid = try #require(await s.runner.processID)
+    try await Task.sleep(for: .milliseconds(200)) // let it install its signal traps
+    await s.runner.stop(grace: .milliseconds(300))
+    #expect(kill(pid, 0) != 0) // gone by the time stop() returns
+    let events = await collect(stream)
+    #expect(events.last == .stopped)
+}

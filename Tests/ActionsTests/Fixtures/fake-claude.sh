@@ -22,6 +22,12 @@ case "$prompt" in
     trap 'exit 130' INT
     sleep 30 &
     wait ;;
+  stubborn)
+    # Ignores Ctrl-C like a stuck job; only terminate stops it.
+    head -n 2 "$here/stream-success.jsonl"
+    trap '' INT
+    trap 'exit 143' TERM
+    while :; do sleep 0.1; done ;;
   *)
     echo "unknown test prompt: $prompt" >&2
     exit 64 ;;
