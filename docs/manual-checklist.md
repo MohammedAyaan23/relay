@@ -88,3 +88,7 @@ microphone/speech permission again after rebuilding.
 ## Security fixes (v0.1.1)
 
 - [ ] Hardened Runtime build: the hotkey records (microphone works), "switch to dark mode" works (Apple events), "make a new folder called x" with Finder in front works, and "keyboard light to 30 percent" works
+- [ ] Say just "quit": Relay asks "Quit which app?" and nothing quits; "quit this app" quits the front app
+- [ ] A Claude job finishing or failing shows a notification that names only the project (no reply or error text)
+- [ ] Quit Relay during a long Claude job: no `claude` process is left (`pgrep -fl "claude -p"`)
+- [ ] Dictate into a Terminal window: the text is pasted on one line and nothing runs
