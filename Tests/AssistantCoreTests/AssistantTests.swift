@@ -299,3 +299,21 @@ import Testing
     h.assistant.cancelListening() // not listening: nothing to stop
     #expect(h.recorder.stops == 1)
 }
+
+// Notifications can show on the lock screen, so they never carry Claude's reply or error output.
+@MainActor @Test func claudeNotificationsDontShowRepliesOrErrors() async {
+    let h = Harness(transcript: "ask claude to add tests", outcome: .intent(.askClaude))
+    let done = ClaudeResult(text: "The API key is sk-secret-123", sessionID: "s1", durationMs: 1000, costUSD: 0.01,
+                            isError: false, deniedTools: [])
+    await h.claude!.setScript([.sessionStarted(sessionID: "s1"), .finished(done)])
+    await h.speak()
+    await h.assistant.waitForClaudeJob()
+    let project = h.project.lastPathComponent
+    #expect(h.notificationBodies == ["Done in \(project). Details are in Relay's panel."])
+
+    let f = Harness(transcript: "ask claude to continue", outcome: .intent(.askClaude))
+    await f.claude!.setScript([.failed(exitCode: 1, stderrTail: "token sk-secret-456 rejected")])
+    await f.speak()
+    await f.assistant.waitForClaudeJob()
+    #expect(f.notificationBodies == ["It stopped with an error in \(f.project.lastPathComponent). Details are in Relay's panel."])
+}

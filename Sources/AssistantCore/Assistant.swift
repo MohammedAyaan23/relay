@@ -787,10 +787,18 @@ public final class Assistant {
         folder == url(for: .desktop) ? "on Desktop" : "in \(folder.lastPathComponent)"
     }
 
+    /// Notifications can appear on the lock screen, so they name the project but never include Claude's
+    /// reply or error output; those stay in the panel.
+    private func claudeNotice(failed: Bool) -> String {
+        let project = activeProject?.lastPathComponent ?? "your project"
+        return failed ? "It stopped with an error in \(project). Details are in Relay's panel."
+            : "Done in \(project). Details are in Relay's panel."
+    }
+
     private func claudeJobEnded() {
         claudeRunning = false
         if let claudeError, !claudeFailureNotified {
-            deps.notify("Claude failed", claudeError)
+            deps.notify("Claude failed", claudeNotice(failed: true))
         }
     }
 
@@ -806,12 +814,12 @@ public final class Assistant {
             var summary = "Claude finished in \(result.durationMs / 1000)s ($\(String(format: "%.2f", result.costUSD)))."
             if !result.deniedTools.isEmpty { summary += " Blocked: \(result.deniedTools.joined(separator: "; "))." }
             message = summary
-            deps.notify("Claude finished", result.text ?? summary)
+            deps.notify("Claude finished", claudeNotice(failed: false))
         case .failed(let code, let tail):
             // Auth, credit and API errors leave stderr empty; the reason is in the error result.
             let reason = tail.isEmpty ? (claudeError ?? "no details") : tail
             message = "Claude failed (exit \(code)): \(reason)"
-            deps.notify("Claude failed", reason)
+            deps.notify("Claude failed", claudeNotice(failed: true))
             claudeFailureNotified = true
         case .stopped:
             message = "Stopped Claude."

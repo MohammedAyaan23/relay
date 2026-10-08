@@ -244,6 +244,7 @@ final class Harness {
     let claude: FakeClaude?
     let log = MemoryLog()
     private(set) var notifications: [String] = []
+    private(set) var notificationBodies: [String] = []
     let project: URL
     private(set) var assistant: Assistant!
 
@@ -256,7 +257,10 @@ final class Harness {
         let deps = AssistantDependencies(
             recorder: recorder, transcriber: transcriber, router: router,
             apps: { [safari] }, opener: opener, system: system, workspace: workspace, capture: capture, claude: claude, log: log,
-            notify: { [weak self] title, _ in self?.notifications.append(title) })
+            notify: { [weak self] title, body in
+                self?.notifications.append(title)
+                self?.notificationBodies.append(body)
+            })
         assistant = Assistant(dependencies: deps, activeProject: project)
     }
 
