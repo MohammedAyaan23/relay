@@ -13,7 +13,7 @@
     <key>LSMinimumSystemVersion</key><string>26.0</string>
     <key>LSUIElement</key><true/>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Relay controls System Events to switch dark mode when you ask.</string>
+    <string>Relay controls System Events (dark mode), Finder (new folders in the open window) and Notes (its own Relay note) when you ask it to.</string>
     <key>NSRemindersFullAccessUsageDescription</key>
     <string>Relay adds reminders you ask for to Apple Reminders.</string>
     <key>NSRemindersUsageDescription</key>
