@@ -6,7 +6,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 VERSION="${RELAY_VERSION:-$(tr -d '[:space:]' < VERSION)}"
-BUILD_NUMBER="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
+BUILD_NUMBER="${RELAY_BUILD_NUMBER:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}"
 IDENTITY="${RELAY_SIGN_IDENTITY:--}" # "-" = local ad-hoc signature (development)
 
 swift build -c release --arch arm64 --product Relay
@@ -26,11 +26,5 @@ if compgen -G "Resources/Shortcuts/*.shortcut" > /dev/null; then
     mkdir -p "$APP/Contents/Resources/Shortcuts"
     cp Resources/Shortcuts/*.shortcut "$APP/Contents/Resources/Shortcuts/"
 fi
-# Hardened Runtime: macOS then refuses injected libraries and debuggers, so no other program can borrow
-# Relay's permissions. The entitlements allow only the microphone and Apple events.
-KEYCHAIN_ARGS=()
-if [ -n "${RELAY_SIGN_KEYCHAIN:-}" ]; then KEYCHAIN_ARGS=(--keychain "$RELAY_SIGN_KEYCHAIN"); fi
-codesign --force --options runtime --entitlements Resources/Relay.entitlements ${KEYCHAIN_ARGS[@]+"${KEYCHAIN_ARGS[@]}"} \
-    --sign "$IDENTITY" "$APP"
-codesign --verify --strict "$APP"
+scripts/sign-app.sh "$APP" "$IDENTITY" "${RELAY_SIGN_KEYCHAIN:-}"
 echo "Built $APP ($VERSION, build $BUILD_NUMBER)"

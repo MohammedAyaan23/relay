@@ -31,7 +31,9 @@
    make release
    ```
 
-   This signs Relay, runs the portability self-check with `.build` hidden, and writes
+   Run it in the Terminal app (it asks for the signing keychain's password). It refuses to run with uncommitted
+   changes, builds from a clean export of the commit in a temporary folder (so no path from your Mac ends up
+   in the app), signs the app and the DMG, runs the portability and injection checks, and writes
    `dist/Relay-<version>.dmg` plus its SHA-256. It refuses to overwrite an existing DMG.
 3. Publish (tags are `vX.Y.Z`):
 
