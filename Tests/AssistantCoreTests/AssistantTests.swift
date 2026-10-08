@@ -273,3 +273,29 @@ import Testing
         #expect(entry?.outcome == outcome.logName)
     }
 }
+
+// The raw recording never outlives the command, even when transcription fails.
+@MainActor @Test func failedTranscriptionStillDeletesTheRecording() async {
+    let h = Harness(transcript: "open safari")
+    await h.transcriber.setTranscribeError(.notPrepared)
+    await h.assistant.prepare()
+    await h.assistant.hotkeyPressed()
+    await h.assistant.hotkeyPressed()
+    let audio = h.recorder.lastAudio
+    #expect(audio != nil)
+    #expect(!FileManager.default.fileExists(atPath: audio!.path))
+}
+
+// Quitting while listening stops the microphone and deletes the partial recording.
+@MainActor @Test func cancelListeningStopsAndDeletesTheRecording() async {
+    let h = Harness(transcript: "open safari")
+    await h.assistant.prepare()
+    await h.assistant.hotkeyPressed()
+    #expect(h.assistant.phase == .listening)
+    h.assistant.cancelListening()
+    #expect(h.recorder.stops == 1)
+    #expect(h.assistant.phase == .idle)
+    #expect(!FileManager.default.fileExists(atPath: h.recorder.lastAudio!.path))
+    h.assistant.cancelListening() // not listening: nothing to stop
+    #expect(h.recorder.stops == 1)
+}

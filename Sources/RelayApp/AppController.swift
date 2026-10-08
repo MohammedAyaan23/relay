@@ -41,6 +41,7 @@ final class AppController {
     func start() {
         Notifier.requestAuthorization()
         capture.pruneTimers()
+        MicRecorder.removeLeftoverRecordings()
         HotkeyCenter.shared.onPress = { [weak self] in self?.hotkeyFired() }
         let hotkey = HotkeyStore.load(from: .standard)
         if !HotkeyCenter.shared.register(hotkey) {

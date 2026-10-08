@@ -20,17 +20,31 @@ final class FakeRecorder: AudioRecording {
         if let startError { throw startError }
         starts += 1
     }
-    func stop() throws -> URL { URL(fileURLWithPath: "/tmp/relay-fake.caf") }
+    private(set) var stops = 0
+    /// The last "recording": a real temp file, so tests can check Relay deletes it.
+    private(set) var lastAudio: URL?
+    func stop() throws -> URL {
+        stops += 1
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("relay-fake-\(UUID().uuidString).caf")
+        FileManager.default.createFile(atPath: url.path, contents: Data("audio".utf8))
+        lastAudio = url
+        return url
+    }
 }
 
 actor FakeTranscriber: Transcribing {
     var text: String
     var prepareError: TranscriptionError?
+    var transcribeError: TranscriptionError?
 
     init(text: String) { self.text = text }
+    func setTranscribeError(_ error: TranscriptionError?) { transcribeError = error }
     func setPrepareError(_ error: TranscriptionError?) { prepareError = error }
     func prepare() async throws { if let prepareError { throw prepareError } }
-    func transcribe(_ audio: URL) async throws -> String { text }
+    func transcribe(_ audio: URL) async throws -> String {
+        if let transcribeError { throw transcribeError }
+        return text
+    }
 }
 
 actor FakeRouter: IntentRouting {

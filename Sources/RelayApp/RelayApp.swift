@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Don't leave an orphaned `claude` process behind when quitting mid-job.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        controller.assistant.cancelListening() // stop the microphone and delete a partial recording
         guard controller.assistant.claudeRunning else { return .terminateNow }
         Task {
             await controller.shutdown()

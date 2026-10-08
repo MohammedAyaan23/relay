@@ -183,16 +183,24 @@ public final class Assistant {
             message = "Transcribing…"
             let text: String
             do {
+                defer { try? FileManager.default.removeItem(at: audio) } // the recording never outlives this step
                 text = try await deps.transcriber.transcribe(audio)
             } catch {
                 finish("Couldn't transcribe: \(error.localizedDescription)", .problem)
                 return
             }
-            try? FileManager.default.removeItem(at: audio)
             await handle(transcript: text)
         case .preparing, .transcribing, .routing, .acting:
             return
         }
+    }
+
+    /// Stops listening without running a command (Relay is quitting), and deletes the partial recording.
+    public func cancelListening() {
+        guard phase == .listening else { return }
+        if let audio = try? deps.recorder.stop() { try? FileManager.default.removeItem(at: audio) }
+        phase = .idle
+        message = nil
     }
 
     // MARK: Commands

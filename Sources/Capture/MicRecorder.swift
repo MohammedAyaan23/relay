@@ -44,7 +44,13 @@ public final class MicRecorder: AudioRecording {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("relay-\(UUID().uuidString).caf")
         let file = try AVAudioFile(forWriting: url, settings: format.settings)
         input.installTap(onBus: 0, bufferSize: 4096, format: format, block: Self.writer(to: file, meter: meter))
-        try engine.start()
+        do {
+            try engine.start()
+        } catch {
+            input.removeTap(onBus: 0)
+            try? FileManager.default.removeItem(at: url) // don't leave an empty recording behind
+            throw error
+        }
         self.engine = engine
         self.file = file
     }
@@ -58,6 +64,14 @@ public final class MicRecorder: AudioRecording {
         self.engine = nil
         self.file = nil
         return file.url
+    }
+
+    /// Deletes recordings a crash or forced quit left in the temp folder (`relay-<UUID>.caf`).
+    public nonisolated static func removeLeftoverRecordings(in folder: URL = FileManager.default.temporaryDirectory) {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+        for name in names where name.hasPrefix("relay-") && name.hasSuffix(".caf") {
+            try? FileManager.default.removeItem(at: folder.appendingPathComponent(name))
+        }
     }
 
     /// Built outside the main actor on purpose: the tap runs on an audio thread, and a closure
