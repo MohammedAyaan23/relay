@@ -85,22 +85,20 @@ public final class MacWorkspaceControls: WorkspaceControlling {
 
     public func createFolder(named name: String, in folder: URL) async throws -> URL {
         try Self.requireFolder(folder)
-        let url = UniqueName.available(for: name, in: folder)
         do {
-            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
+            return try UniqueName.create(name, in: folder, folder: true)
         } catch {
             throw SystemControlError.failed(error.localizedDescription)
         }
-        return url
     }
 
     public func createFile(named name: String, in folder: URL) async throws -> URL {
         try Self.requireFolder(folder)
-        let url = UniqueName.available(for: name, in: folder)
-        guard FileManager.default.createFile(atPath: url.path, contents: Data()) else {
+        do {
+            return try UniqueName.create(name, in: folder, folder: false)
+        } catch {
             throw SystemControlError.failed("couldn't write in \(folder.lastPathComponent)")
         }
-        return url
     }
 
     private static func requireFolder(_ folder: URL) throws {

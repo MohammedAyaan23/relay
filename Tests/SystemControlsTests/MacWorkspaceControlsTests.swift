@@ -28,6 +28,26 @@ import Testing
     #expect(try String(contentsOf: note, encoding: .utf8) == "keep me")
 }
 
+// A name taken by a symlink, even one pointing nowhere, counts as taken: Relay never writes through it.
+@Test func symlinkedNamesAreNeverWrittenThrough() async throws {
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent("relay-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let target = folder.appendingPathComponent("elsewhere/secret.txt")
+    try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try FileManager.default.createSymbolicLink(at: folder.appendingPathComponent("todo.txt"), withDestinationURL: target)
+    try FileManager.default.createSymbolicLink(at: folder.appendingPathComponent("invoices"),
+                                               withDestinationURL: folder.appendingPathComponent("elsewhere/dir"))
+    let controls = MacWorkspaceControls()
+
+    let file = try await controls.createFile(named: "todo.txt", in: folder)
+    #expect(file.lastPathComponent == "todo 2.txt")
+    #expect(!FileManager.default.fileExists(atPath: target.path)) // nothing written through the link
+
+    let created = try await controls.createFolder(named: "invoices", in: folder)
+    #expect(created.lastPathComponent == "invoices 2")
+}
+
 @Test func creatingInAMissingFolderFails() async {
     let missing = URL(fileURLWithPath: "/nonexistent-relay-folder")
     await #expect(throws: SystemControlError.self) {
