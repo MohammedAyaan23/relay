@@ -66,3 +66,19 @@ private func release(_ tag: String, draft: Bool = false, prerelease: Bool = fals
     #expect(await UpdateChecker.check(current: "0.1.0", feed: GitHubReleaseFeed(repository: "not a repo")) == .failed)
     #expect(await UpdateChecker.check(current: "0.1.0", feed: GitHubReleaseFeed(repository: "/relay")) == .failed)
 }
+
+// The "Update available" link opens only this repository's GitHub release pages, never another URL.
+@Test func onlyThisRepositorysReleasePagesAreAccepted() {
+    let repo = "me/relay"
+    func ok(_ text: String) -> Bool { GitHubReleaseFeed.isReleasePage(URL(string: text)!, repository: repo) }
+    #expect(ok("https://github.com/me/relay/releases/tag/v0.2.0"))
+    #expect(ok("https://GitHub.com/Me/Relay/releases/tag/v0.2.0"))
+    #expect(!ok("http://github.com/me/relay/releases/tag/v0.2.0"))
+    #expect(!ok("https://evil.example/me/relay/releases/tag/v0.2.0"))
+    #expect(!ok("https://github.com.evil.example/me/relay/releases/tag/v0.2.0"))
+    #expect(!ok("https://github.com/someone/else/releases/tag/v0.2.0"))
+    #expect(!ok("https://github.com/me/relay/releases/../../../someone/else"))
+    #expect(!ok("file:///Volumes/share/Evil.app"))
+    #expect(!ok("smb://server/share"))
+    #expect(!ok("x-apple.systempreferences:com.apple.preference.security"))
+}

@@ -48,7 +48,16 @@ public struct GitHubReleaseFeed: ReleaseFeed {
         request.setValue("Relay", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
-        return try Self.decode(data)
+        let summary = try Self.decode(data)
+        // The link is opened when the user clicks "Update available", so accept only our own release pages.
+        guard Self.isReleasePage(summary.url, repository: repository) else { throw URLError(.badURL) }
+        return summary
+    }
+
+    /// True for `https://github.com/<repository>/releases/…` (case-insensitive), after resolving any "..".
+    public static func isReleasePage(_ url: URL, repository: String) -> Bool {
+        guard url.scheme?.lowercased() == "https", url.host?.lowercased() == "github.com" else { return false }
+        return url.standardized.path.lowercased().hasPrefix("/\(repository.lowercased())/releases/")
     }
 
     private struct Payload: Decodable {
